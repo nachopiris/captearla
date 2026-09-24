@@ -40,7 +40,7 @@ RDD: not enabled by user (default off) -> `disabled/unmanaged`.
 - [x] T1 Scaffold: package.json, tsconfig, vitest, LICENSE, .gitignore
 - [x] T2 Domain + pipeline: audio chunker (PCM windowing with silence-based cut), session registry,
       caption bus (pub/sub by session), `Transcriber` port + mock adapter — with tests
-- [ ] T3 Gemini adapter (chunk -> WAV -> generateContent JSON; rolling context) — unit tests with
+- [x] T3 Gemini adapter (chunk -> WAV -> generateContent JSON; rolling context) — unit tests with
       stubbed client
 - [ ] T4 Server: HTTP static + WS `/ingest/:session` and `/captions/:session` + `/api/sessions` — tests
 - [ ] T5 Frontend: `stage.html` (mic -> PCM16 AudioWorklet), `index.html` viewer (session/lang
@@ -63,7 +63,19 @@ RDD: not enabled by user (default off) -> `disabled/unmanaged`.
   and swallows transcriber errors). Infrastructure: `MockTranscriber` (deterministic, cycles
   canned bilingual sentences, no network). RED observed first (5 suites failing on missing
   module: audio-chunker, caption-bus, session-registry, mock-transcriber, transcription-pipeline),
-  then GREEN: 21/21 tests passing, `tsc --noEmit` clean. Commit: (recorded after commit below).
+  then GREEN: 21/21 tests passing, `tsc --noEmit` clean. Commit: 70002b9.
+- T3 done. Added `pcmToWav` (pure helper: canonical 44-byte WAV header + PCM16LE data, tested
+  header fields byte-by-byte and payload/size correctness) and `GeminiTranscriber` (adapter over
+  an injected narrow `GeminiClient` interface — no real `@google/genai` client touched in tests;
+  wraps chunk to WAV/base64, sends prompt + rolling context + inlineData audio/wav,
+  `responseMimeType: application/json` with schema, parses `{text,lang,es,en}`, empty/invalid
+  JSON or client-throw all degrade to an empty-text result instead of throwing, model defaults to
+  `gemini-2.5-flash`). Note: bumped `@google/genai` from the originally scaffolded `^0.3.0` (its
+  published tarball ships no `dist/`, i.e. broken) to `^2.24.0`, whose `node.d.ts` confirms
+  `ai.models.generateContent(params) => Promise<GenerateContentResponse>` and
+  `response.text: string | undefined`, matching the design. RED observed first (2 suites failing
+  on missing module: pcm-to-wav, gemini-transcriber), then GREEN: 31/31 tests passing overall,
+  `tsc --noEmit` clean. Commit: (recorded after commit below).
 
 ## Next step
-Continue with T3 (Gemini adapter).
+Continue with T4 (HTTP + WS server).

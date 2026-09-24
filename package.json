@@ -16,7 +16,7 @@
     "simulate": "tsx scripts/simulate.ts"
   },
   "dependencies": {
-    "@google/genai": "^0.3.0",
+    "@google/genai": "^2.24.0",
     "ws": "^8.18.0"
   },
   "devDependencies": {
