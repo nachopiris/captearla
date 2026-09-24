@@ -38,7 +38,7 @@ RDD: not enabled by user (default off) -> `disabled/unmanaged`.
 
 ## Tasks
 - [x] T1 Scaffold: package.json, tsconfig, vitest, LICENSE, .gitignore
-- [ ] T2 Domain + pipeline: audio chunker (PCM windowing with silence-based cut), session registry,
+- [x] T2 Domain + pipeline: audio chunker (PCM windowing with silence-based cut), session registry,
       caption bus (pub/sub by session), `Transcriber` port + mock adapter — with tests
 - [ ] T3 Gemini adapter (chunk -> WAV -> generateContent JSON; rolling context) — unit tests with
       stubbed client
@@ -55,8 +55,15 @@ RDD: not enabled by user (default off) -> `disabled/unmanaged`.
 ## Progress / evidence
 - T1 done. Scaffolded package.json (ESM, Node 22+, scripts: dev/start/test/typecheck/simulate),
   tsconfig.json (NodeNext, strict), vitest.config.ts, Apache-2.0 LICENSE, .gitignore, .env.example.
-  `npm install` clean, `npx tsc --version` / `npx vitest --version` both resolve. Commit: (pending
-  short hash, see below).
+  `npm install` clean, `npx tsc --version` / `npx vitest --version` both resolve. Commit: 2dd0120.
+- T2 done. Domain: `Caption`, `Transcriber` port (`TranscribeInput`/`TranscribeResult`).
+  Application: `AudioChunker` (silence-cut + max-duration flush, drops all-silence chunks),
+  `CaptionBus` (pub/sub by session + bounded history), `SessionRegistry` (predefined +
+  auto-create), `TranscriptionPipeline` (per-session ordered queue, rolling context, logs
+  and swallows transcriber errors). Infrastructure: `MockTranscriber` (deterministic, cycles
+  canned bilingual sentences, no network). RED observed first (5 suites failing on missing
+  module: audio-chunker, caption-bus, session-registry, mock-transcriber, transcription-pipeline),
+  then GREEN: 21/21 tests passing, `tsc --noEmit` clean. Commit: (recorded after commit below).
 
 ## Next step
-Delegate T1-T6 to one writer.
+Continue with T3 (Gemini adapter).
