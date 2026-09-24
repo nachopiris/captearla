@@ -53,6 +53,10 @@ RDD: not enabled by user (default off) -> `disabled/unmanaged`.
 - [x] T8 Viewer dedupe by caption id only: the T7 seq check (`seq <= maxSeqSeen`) silenced every
       open viewer after a server restart, because the pipeline seq counter restarts at 0 while ids
       stay unique (route: inline, one mechanical file + its test)
+- [x] T9 Projector mode exit: leaving fullscreen via Esc left `body.projector` set, hiding the top
+      bar (and its exit button) -> black screen. `createProjectorMode` syncs with
+      `fullscreenchange`; Esc, double-click on captions and a corner Exit button also leave it
+      (route: inline, small understood change)
 
 ## Acceptance criteria
 - `npm test` green; `npm run build` passes typecheck.
@@ -191,6 +195,11 @@ RDD: not enabled by user (default off) -> `disabled/unmanaged`.
 - T8 done (parent review of T7). RED: `createCaptionBuffer > accepts new captions after a server
   restart resets seq` failed (`expected false to be true`). GREEN: seq check removed, arrival order
   kept; `npm test` 59/59, `npm run typecheck` clean, `node --check public/viewer-core.js` OK.
+  Commit: 1471366.
+- T9 done. RED: 5 `createProjectorMode` cases failed (`createProjectorMode is not a function`).
+  GREEN: `npm test` 64/64, typecheck clean, `node --check` OK for viewer.js/viewer-core.js; smoke
+  on mock server served `projectorExitButton` and the new viewer.js. Browser fullscreen behavior
+  not exercised automatically (manual check by user).
 
 ## Next step
 Manual check with a real `GEMINI_API_KEY` and mic (user); publish repo (user decision).

@@ -1,6 +1,6 @@
-// Pure, DOM-free viewer logic: the caption buffer and the WebSocket
-// reconnect state machine. Kept separate from viewer.js so both can be
-// unit-tested without a browser.
+// Pure, DOM-free viewer logic: the caption buffer, the WebSocket reconnect
+// state machine, and projector mode state. Kept separate from viewer.js so
+// they can be unit-tested without a browser.
 
 /**
  * Keeps the last `max` non-empty captions for a session in arrival order,
@@ -138,4 +138,34 @@ export function createCaptionConnection({
   }
 
   return { connect: connectInternal, close };
+}
+
+/**
+ * Projector mode state. Kept in sync with the browser's fullscreen state so
+ * that leaving fullscreen from the browser (Esc, system gesture) also leaves
+ * projector mode; otherwise the hidden top bar would leave no way back.
+ * Works without fullscreen support too: exit() only leaves projector mode.
+ */
+export function createProjectorMode({ onChange, requestFullscreen, exitFullscreen, isFullscreen }) {
+  let active = false;
+
+  function set(next) {
+    if (next === active) return;
+    active = next;
+    onChange(active);
+    if (active) {
+      requestFullscreen();
+    } else if (isFullscreen()) {
+      exitFullscreen();
+    }
+  }
+
+  return {
+    toggle: () => set(!active),
+    exit: () => set(false),
+    onFullscreenChange() {
+      if (active && !isFullscreen()) set(false);
+    },
+    isActive: () => active
+  };
 }

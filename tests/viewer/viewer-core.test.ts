@@ -1,7 +1,8 @@
 import { describe, expect, test } from "vitest";
 import {
   createCaptionBuffer,
-  createCaptionConnection
+  createCaptionConnection,
+  createProjectorMode
 } from "../../public/viewer-core.js";
 
 /** Minimal fake WebSocket: records listeners, lets tests fire events by hand. */
@@ -166,7 +167,6 @@ describe("createCaptionBuffer", () => {
     expect(buffer.add(c2)).toBe(false);
     expect(buffer.add(c3)).toBe(false);
     expect(buffer.lines("original")).toEqual(["two", "three"]);
-
   });
 
   test("accepts new captions after a server restart resets seq", () => {
@@ -201,5 +201,76 @@ describe("createCaptionBuffer", () => {
     // After reset, a caption with a previously-seen id/seq is accepted again.
     expect(buffer.add(makeCaption({ id: "1", seq: 1, text: "one-again" }))).toBe(true);
     expect(buffer.lines("original")).toEqual(["one-again"]);
+  });
+});
+
+describe("createProjectorMode", () => {
+  function setup() {
+    const fullscreen = { active: false, requests: 0, exits: 0 };
+    const changes: boolean[] = [];
+    const projector = createProjectorMode({
+      onChange: (active: boolean) => changes.push(active),
+      requestFullscreen: () => {
+        fullscreen.requests++;
+        fullscreen.active = true;
+      },
+      exitFullscreen: () => {
+        fullscreen.exits++;
+        fullscreen.active = false;
+      },
+      isFullscreen: () => fullscreen.active
+    });
+    return { projector, fullscreen, changes };
+  }
+
+  test("toggle enters projector mode and requests fullscreen", () => {
+    const { projector, fullscreen, changes } = setup();
+    projector.toggle();
+    expect(projector.isActive()).toBe(true);
+    expect(fullscreen.requests).toBe(1);
+    expect(changes).toEqual([true]);
+  });
+
+  test("leaving fullscreen from the browser (Esc) also leaves projector mode", () => {
+    const { projector, fullscreen, changes } = setup();
+    projector.toggle();
+    fullscreen.active = false; // the browser exited fullscreen on its own
+    projector.onFullscreenChange();
+    expect(projector.isActive()).toBe(false);
+    expect(changes).toEqual([true, false]);
+    expect(fullscreen.exits).toBe(0);
+  });
+
+  test("entering fullscreen does not leave projector mode", () => {
+    const { projector } = setup();
+    projector.toggle();
+    projector.onFullscreenChange();
+    expect(projector.isActive()).toBe(true);
+  });
+
+  test("exit leaves projector mode and exits fullscreen if still active", () => {
+    const { projector, fullscreen, changes } = setup();
+    projector.toggle();
+    projector.exit();
+    expect(projector.isActive()).toBe(false);
+    expect(fullscreen.exits).toBe(1);
+    expect(changes).toEqual([true, false]);
+  });
+
+  test("exit works when fullscreen is unsupported and is a no-op when inactive", () => {
+    const changes: boolean[] = [];
+    const projector = createProjectorMode({
+      onChange: (active: boolean) => changes.push(active),
+      requestFullscreen: () => {},
+      exitFullscreen: () => {
+        throw new Error("should not be called");
+      },
+      isFullscreen: () => false
+    });
+    projector.exit();
+    expect(changes).toEqual([]);
+    projector.toggle();
+    projector.exit();
+    expect(changes).toEqual([true, false]);
   });
 });

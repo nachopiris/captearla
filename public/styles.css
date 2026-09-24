@@ -163,6 +163,24 @@ button.danger {
   display: none;
 }
 
+.projector-exit {
+  display: none;
+}
+
+.projector .projector-exit {
+  display: block;
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  z-index: 10;
+  opacity: 0.35;
+}
+
+.projector .projector-exit:hover,
+.projector .projector-exit:focus-visible {
+  opacity: 1;
+}
+
 .projector .captions {
   min-height: 100vh;
   padding: 4vh 5vw;

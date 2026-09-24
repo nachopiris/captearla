@@ -7,7 +7,7 @@
 // socket, and a reconnect after a genuine drop replays history into the
 // buffer's dedupe instead of visibly blanking/reflowing the screen.
 
-import { createCaptionBuffer, createCaptionConnection } from "./viewer-core.js";
+import { createCaptionBuffer, createCaptionConnection, createProjectorMode } from "./viewer-core.js";
 
 const MAX_VISIBLE_LINES = 4;
 
@@ -15,6 +15,7 @@ const sessionSelect = document.getElementById("sessionSelect");
 const langSelect = document.getElementById("langSelect");
 const statusBadge = document.getElementById("statusBadge");
 const projectorButton = document.getElementById("projectorButton");
+const projectorExitButton = document.getElementById("projectorExitButton");
 const captionsEl = document.getElementById("captions");
 
 let currentSession = null;
@@ -127,13 +128,19 @@ langSelect.addEventListener("change", () => {
   renderLines();
 });
 
-projectorButton.addEventListener("click", () => {
-  document.body.classList.toggle("projector");
-  if (document.body.classList.contains("projector")) {
-    document.documentElement.requestFullscreen?.().catch(() => {});
-  } else if (document.fullscreenElement) {
-    document.exitFullscreen?.().catch(() => {});
-  }
+const projector = createProjectorMode({
+  onChange: (active) => document.body.classList.toggle("projector", active),
+  requestFullscreen: () => document.documentElement.requestFullscreen?.().catch(() => {}),
+  exitFullscreen: () => document.exitFullscreen?.().catch(() => {}),
+  isFullscreen: () => Boolean(document.fullscreenElement)
+});
+
+projectorButton.addEventListener("click", () => projector.toggle());
+projectorExitButton.addEventListener("click", () => projector.exit());
+captionsEl.addEventListener("dblclick", () => projector.exit());
+document.addEventListener("fullscreenchange", () => projector.onFullscreenChange());
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") projector.exit();
 });
 
 refreshSessions();
