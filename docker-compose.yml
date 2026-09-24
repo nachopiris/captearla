@@ -1,0 +1,12 @@
+services:
+  livecap:
+    build: .
+    ports:
+      - "${PORT:-3000}:3000"
+    environment:
+      - PORT=3000
+      - TRANSCRIBER=${TRANSCRIBER:-mock}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - GEMINI_MODEL=${GEMINI_MODEL:-gemini-2.5-flash}
+      - SESSIONS=${SESSIONS:-main-stage,room-a,room-b}
+    restart: unless-stopped

@@ -45,7 +45,7 @@ RDD: not enabled by user (default off) -> `disabled/unmanaged`.
 - [x] T4 Server: HTTP static + WS `/ingest/:session` and `/captions/:session` + `/api/sessions` — tests
 - [x] T5 Frontend: `stage.html` (mic -> PCM16 AudioWorklet), `index.html` viewer (session/lang
       picker, captions), minimal styling
-- [ ] T6 Simulation script (WAV -> N sessions), Dockerfile, docker-compose, README deploy docs
+- [x] T6 Simulation script (WAV -> N sessions), Dockerfile, docker-compose, README deploy docs
 
 ## Acceptance criteria
 - `npm test` green; `npm run build` passes typecheck.
@@ -106,7 +106,25 @@ RDD: not enabled by user (default off) -> `disabled/unmanaged`.
   tests per plan; validated with `node --check` on all `.js` files (pass) and by serving every
   static asset through the real server (`/`, `/stage.html`, `/viewer.js`, `/pcm-worklet.js`,
   `/styles.css` all 200 with correct content-type). Full suite still 46/46, `tsc --noEmit` clean
-  (no `src/` changes this task). Commit: (recorded after commit below).
+  (no `src/` changes this task). Commit: 4e93c3d.
+- T6 done. Added `parseWavPcm16` (pure WAV decoder pairing with `pcmToWav`: generic chunk walker
+  tolerant of extra chunks, rejects non-RIFF/WAVE and non-16-bit files with clear errors; tested
+  RED-then-GREEN including an encode/decode round-trip against `pcmToWav`) and
+  `scripts/simulate.ts` (loops a 16kHz mono PCM16 WAV into one or more `--sessions` over
+  `/ingest/:session` in real time via `ws`, exits with an ffmpeg conversion command if the file
+  isn't 16kHz mono, auto-reconnects on drop). `Dockerfile` (single-stage `node:22-slim`, `npm ci`
+  including dev deps so `tsx` runs the TS source directly — no separate build step for this
+  prototype) and `docker-compose.yml` (env passthrough for PORT/TRANSCRIBER/GEMINI_API_KEY/
+  GEMINI_MODEL/SESSIONS). `README.md` (architecture diagram, quick start for mock/Gemini modes,
+  running-a-conference guidance, scaling notes, local/offline-adapter note, privacy note).
+  RED observed first (1 suite failing on missing module: wav-to-pcm), then GREEN: 49/49 tests
+  passing overall, `tsc --noEmit` clean. Manual smoke: `docker build` succeeded, `docker run`
+  served `/api/sessions` correctly; `npx tsx scripts/simulate.ts` against a locally generated
+  16kHz mono sine-wave WAV, streamed into two parallel sessions
+  (`main-stage`,`room-a`) at once, both produced distinct MockTranscriber captions retrievable via
+  `/api/sessions/:id/captions` — confirming end-to-end parallelism. Commit: (recorded after
+  commit below).
 
 ## Next step
-Continue with T6 (simulate script, Dockerfile, docker-compose, README).
+None — T1-T6 all implemented and verified. Awaiting final verification pass (npm test,
+typecheck, smoke) and close-out report.
