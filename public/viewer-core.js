@@ -3,30 +3,26 @@
 // unit-tested without a browser.
 
 /**
- * Keeps the last `max` non-empty captions for a session, ordered by seq,
+ * Keeps the last `max` non-empty captions for a session in arrival order,
  * and renders per-language lines on demand.
  *
- * A caption is rejected (return false) when its id was already seen, or
- * when its seq is older than or equal to the highest seq already seen.
- * This is what makes replayed WS history (same ids, same or lower seqs)
- * a no-op instead of duplicating or reordering lines.
+ * A caption is rejected (return false) when its id was already seen. This
+ * makes replayed WS history a no-op instead of duplicating lines. Seq is not
+ * used for dedupe: it restarts at 0 when the server restarts, while ids stay
+ * unique, so a seq check would silence open viewers after a restart.
  */
 export function createCaptionBuffer(max = 4) {
   let seenIds = new Set();
-  let maxSeqSeen = -Infinity;
   let captions = [];
 
   function add(caption) {
     if (seenIds.has(caption.id)) return false;
-    if (caption.seq <= maxSeqSeen) return false;
 
     seenIds.add(caption.id);
-    maxSeqSeen = caption.seq;
 
     if (!caption.text) return true;
 
     captions.push(caption);
-    captions.sort((a, b) => a.seq - b.seq);
     if (captions.length > max) {
       captions = captions.slice(captions.length - max);
     }
@@ -35,7 +31,6 @@ export function createCaptionBuffer(max = 4) {
 
   function reset() {
     seenIds = new Set();
-    maxSeqSeen = -Infinity;
     captions = [];
   }
 

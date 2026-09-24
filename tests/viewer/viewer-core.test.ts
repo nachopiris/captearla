@@ -150,7 +150,7 @@ describe("createCaptionConnection", () => {
 });
 
 describe("createCaptionBuffer", () => {
-  test("dedupes by id and by older-or-equal seq, keeping only the last N by seq", () => {
+  test("dedupes by id, keeping only the last N in arrival order", () => {
     const buffer = createCaptionBuffer(2);
     const c1 = makeCaption({ id: "1", seq: 1, text: "one" });
     const c2 = makeCaption({ id: "2", seq: 2, text: "two" });
@@ -167,8 +167,15 @@ describe("createCaptionBuffer", () => {
     expect(buffer.add(c3)).toBe(false);
     expect(buffer.lines("original")).toEqual(["two", "three"]);
 
-    // A different id with an older-or-equal seq is stale and also rejected.
-    expect(buffer.add(makeCaption({ id: "4", seq: 2, text: "stale" }))).toBe(false);
+  });
+
+  test("accepts new captions after a server restart resets seq", () => {
+    const buffer = createCaptionBuffer(2);
+    buffer.add(makeCaption({ id: "a", seq: 7, text: "before restart" }));
+
+    // The restarted server counts seq from 0 again but issues fresh ids.
+    expect(buffer.add(makeCaption({ id: "b", seq: 0, text: "after restart" }))).toBe(true);
+    expect(buffer.lines("original")).toEqual(["before restart", "after restart"]);
   });
 
   test("lines(lang) reads per-language text and skips captions without that translation yet", () => {

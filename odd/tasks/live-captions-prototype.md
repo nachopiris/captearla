@@ -50,6 +50,9 @@ RDD: not enabled by user (default off) -> `disabled/unmanaged`.
       (caption buffer + connection state machine) with tests, so switching sessions doesn't
       trigger an infinite close/reconnect loop between the old and new socket, and doesn't
       blank/reflow the screen with replayed history on every reconnect
+- [x] T8 Viewer dedupe by caption id only: the T7 seq check (`seq <= maxSeqSeen`) silenced every
+      open viewer after a server restart, because the pipeline seq counter restarts at 0 while ids
+      stay unique (route: inline, one mechanical file + its test)
 
 ## Acceptance criteria
 - `npm test` green; `npm run build` passes typecheck.
@@ -185,9 +188,13 @@ RDD: not enabled by user (default off) -> `disabled/unmanaged`.
   - Smoke: `TRANSCRIBER=mock PORT=3998 npm start` in background; `curl -sI
     localhost:3998/viewer-core.js` -> `200 OK`, `Content-Type: text/javascript; charset=utf-8`;
     server process stopped afterward (confirmed via `curl` timing out on the port).
+- T8 done (parent review of T7). RED: `createCaptionBuffer > accepts new captions after a server
+  restart resets seq` failed (`expected false to be true`). GREEN: seq check removed, arrival order
+  kept; `npm test` 59/59, `npm run typecheck` clean, `node --check public/viewer-core.js` OK.
 
 ## Next step
-None. T1-T7 implemented, tested (strict TDD RED->GREEN throughout), committed as one work-unit
+Manual check with a real `GEMINI_API_KEY` and mic (user); publish repo (user decision).
+Previously: T1-T7 implemented, tested (strict TDD RED->GREEN throughout), committed as one work-unit
 commit per task plus two follow-up fix commits (HEAD-request fix, viewer reconnect/history-replay
 fix), and independently smoke-verified end to end (server, simulate script, Docker image). No
 known gaps against the acceptance criteria.
