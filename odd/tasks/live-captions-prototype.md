@@ -122,9 +122,23 @@ RDD: not enabled by user (default off) -> `disabled/unmanaged`.
   served `/api/sessions` correctly; `npx tsx scripts/simulate.ts` against a locally generated
   16kHz mono sine-wave WAV, streamed into two parallel sessions
   (`main-stage`,`room-a`) at once, both produced distinct MockTranscriber captions retrievable via
-  `/api/sessions/:id/captions` — confirming end-to-end parallelism. Commit: (recorded after
-  commit below).
+  `/api/sessions/:id/captions` — confirming end-to-end parallelism. Commit: 1735d75.
+- Post-T6 fix (found during the mandated final smoke check, `curl -sI /` and `/stage.html`):
+  the HTTP handler only matched `req.method === "GET"`, so HEAD requests fell through to a
+  generic 404. Added a RED test first (2 new cases in http-server.test.ts: HEAD on a static
+  file, HEAD on the JSON API — both failed 404 vs expected 200), then fixed `createServer` to
+  treat GET/HEAD alike and skip writing a body for HEAD. GREEN: 51/51 tests. Commit: 1bb6fff.
+- Final verification (all in foreground, see report):
+  - `npm test`: 51/51 passing.
+  - `npm run typecheck`: clean, no errors.
+  - Smoke: `TRANSCRIBER=mock PORT=3999 npm start` in background; `curl -s /api/sessions` ->
+    3 predefined sessions; `curl -sI /` -> 200 text/html; `curl -sI /stage.html` -> 200
+    text/html; ran `npx tsx scripts/simulate.ts <generated 16kHz mono sine WAV> --sessions
+    main-stage --host localhost:3999` for ~8s; `curl -s /api/sessions/main-stage/captions`
+    returned one caption, and `/api/sessions` showed `live:true, captionsCount:1` for
+    main-stage; server and simulate processes killed afterward, no stray listeners left.
 
 ## Next step
-None — T1-T6 all implemented and verified. Awaiting final verification pass (npm test,
-typecheck, smoke) and close-out report.
+None. T1-T6 implemented, tested (strict TDD RED->GREEN throughout), committed as one work-unit
+commit per task plus one follow-up fix commit, and independently smoke-verified end to end
+(server, simulate script, Docker image). No known gaps against the acceptance criteria.
