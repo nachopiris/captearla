@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>livecap — stage</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="topbar">
+      <div class="brand">livecap · stage</div>
+      <span id="statusBadge" class="badge">idle</span>
+    </div>
+
+    <main style="max-width: 640px; margin: 1.5rem auto; padding: 0 1rem; display: flex; flex-direction: column; gap: 1rem;">
+      <section class="panel">
+        <div class="field">
+          <label for="sessionInput">Session id</label>
+          <input id="sessionInput" list="knownSessions" placeholder="main-stage" autocomplete="off" />
+          <datalist id="knownSessions"></datalist>
+        </div>
+        <p class="hint">
+          Pick a unique id per room/stage. The audience selects the same id on the viewer page.
+        </p>
+      </section>
+
+      <section class="panel" style="display: flex; flex-direction: column; gap: 0.75rem;">
+        <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
+          <button id="startButton" class="primary">Start mic</button>
+          <button id="stopButton" class="danger" disabled>Stop mic</button>
+        </div>
+        <div class="field">
+          <label>Input level</label>
+          <div class="meter"><div id="levelFill" class="meter-fill"></div></div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="field">
+          <label>Live caption preview (original language)</label>
+          <p id="captionPreview" class="hint">No captions yet.</p>
+        </div>
+      </section>
+    </main>
+
+    <script type="module" src="/stage.js"></script>
+  </body>
+</html>

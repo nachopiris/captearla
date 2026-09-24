@@ -43,7 +43,7 @@ RDD: not enabled by user (default off) -> `disabled/unmanaged`.
 - [x] T3 Gemini adapter (chunk -> WAV -> generateContent JSON; rolling context) — unit tests with
       stubbed client
 - [x] T4 Server: HTTP static + WS `/ingest/:session` and `/captions/:session` + `/api/sessions` — tests
-- [ ] T5 Frontend: `stage.html` (mic -> PCM16 AudioWorklet), `index.html` viewer (session/lang
+- [x] T5 Frontend: `stage.html` (mic -> PCM16 AudioWorklet), `index.html` viewer (session/lang
       picker, captions), minimal styling
 - [ ] T6 Simulation script (WAV -> N sessions), Dockerfile, docker-compose, README deploy docs
 
@@ -90,7 +90,23 @@ RDD: not enabled by user (default off) -> `disabled/unmanaged`.
   http-server), then GREEN: 46/46 tests passing overall (includes a real WS
   ingest -> captions integration test on an ephemeral port with MockTranscriber), `tsc --noEmit`
   clean. Manual smoke: `TRANSCRIBER=mock PORT=3998 npx tsx src/main.ts` served
-  `/api/sessions` correctly. Commit: (recorded after commit below).
+  `/api/sessions` correctly. Commit: e11f751.
+- T5 done. Frontend is vanilla HTML/CSS/JS, no build step, English UI copy. `public/styles.css`
+  (shared dark high-contrast theme, responsive `clamp()` caption sizing, `.projector` mode
+  styles). `public/pcm-worklet.js` (AudioWorkletProcessor: linear-interpolation downsample from
+  the browser's native rate to 16 kHz mono, Float32->Int16, ~100ms frames posted to main thread;
+  documented as having no anti-aliasing filter, an acceptable tradeoff for speech). `stage.html` +
+  `stage.js` (operator page: session id input with datalist from `/api/sessions`, start/stop mic,
+  AnalyserNode-based level meter, streams worklet frames over WS `/ingest/:session`, live caption
+  preview via WS `/captions/:session`, remembers session in localStorage try/catch). `index.html`
+  + `viewer.js` (audience viewer: session picker polled every 5s from `/api/sessions`, language
+  picker Original/Español/English, shows last 4 caption lines with newest emphasized via CSS,
+  auto-reconnect with backoff timer, localStorage remember (try/catch) + `?session=&lang=`
+  deep-link via `history.replaceState`, projector/fullscreen toggle). Frontend is exempt from unit
+  tests per plan; validated with `node --check` on all `.js` files (pass) and by serving every
+  static asset through the real server (`/`, `/stage.html`, `/viewer.js`, `/pcm-worklet.js`,
+  `/styles.css` all 200 with correct content-type). Full suite still 46/46, `tsc --noEmit` clean
+  (no `src/` changes this task). Commit: (recorded after commit below).
 
 ## Next step
-Continue with T5 (frontend: stage.html + index.html).
+Continue with T6 (simulate script, Dockerfile, docker-compose, README).

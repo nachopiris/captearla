@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>livecap — live captions</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="topbar">
+      <div class="brand">livecap</div>
+
+      <div class="field">
+        <label for="sessionSelect">Session</label>
+        <select id="sessionSelect"></select>
+      </div>
+
+      <div class="field">
+        <label for="langSelect">Language</label>
+        <select id="langSelect">
+          <option value="original">Original</option>
+          <option value="es">Español</option>
+          <option value="en">English</option>
+        </select>
+      </div>
+
+      <span id="statusBadge" class="badge">connecting…</span>
+      <button id="projectorButton">Projector mode</button>
+    </div>
+
+    <main style="padding: 2rem 5vw;">
+      <div id="captions" class="captions"></div>
+    </main>
+
+    <script type="module" src="/viewer.js"></script>
+  </body>
+</html>
