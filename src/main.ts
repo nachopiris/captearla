@@ -1,0 +1,59 @@
+import { loadConfig } from "./captions/infrastructure/config.js";
+import { SessionRegistry } from "./captions/application/session-registry.js";
+import { CaptionBus } from "./captions/application/caption-bus.js";
+import { SessionPipelineManager } from "./captions/application/session-pipeline-manager.js";
+import { MockTranscriber } from "./captions/infrastructure/mock-transcriber.js";
+import { GeminiTranscriber } from "./captions/infrastructure/gemini-transcriber.js";
+import { createServer } from "./captions/infrastructure/http-server.js";
+import type { Transcriber } from "./captions/domain/transcriber.js";
+import { fileURLToPath } from "node:url";
+import { dirname, join } from "node:path";
+
+const logger = {
+  error(message: string, error: unknown): void {
+    console.error(message, error);
+  }
+};
+
+async function buildTranscriber(config: ReturnType<typeof loadConfig>): Promise<Transcriber> {
+  if (config.transcriber === "mock") {
+    console.log("[livecap] using MockTranscriber (no network, deterministic captions)");
+    return new MockTranscriber();
+  }
+
+  if (!config.geminiApiKey) {
+    throw new Error("TRANSCRIBER=gemini requires GEMINI_API_KEY to be set");
+  }
+
+  const { GoogleGenAI } = await import("@google/genai");
+  const client = new GoogleGenAI({ apiKey: config.geminiApiKey });
+  console.log(`[livecap] using GeminiTranscriber (model: ${config.geminiModel})`);
+  return new GeminiTranscriber({ client, model: config.geminiModel, logger });
+}
+
+async function main(): Promise<void> {
+  const config = loadConfig(process.env);
+  const registry = new SessionRegistry(config.sessions);
+  const bus = new CaptionBus();
+  const transcriber = await buildTranscriber(config);
+
+  const manager = new SessionPipelineManager({
+    bus,
+    transcriber,
+    logger
+  });
+
+  const here = dirname(fileURLToPath(import.meta.url));
+  const staticRoot = join(here, "..", "public");
+
+  const server = createServer({ registry, bus, manager, staticRoot });
+  server.listen(config.port, () => {
+    console.log(`[livecap] listening on http://localhost:${config.port}`);
+    console.log(`[livecap] sessions: ${registry.list().map((s) => s.id).join(", ")}`);
+  });
+}
+
+main().catch((error) => {
+  console.error("[livecap] fatal startup error", error);
+  process.exitCode = 1;
+});

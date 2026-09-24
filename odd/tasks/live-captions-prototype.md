@@ -42,7 +42,7 @@ RDD: not enabled by user (default off) -> `disabled/unmanaged`.
       caption bus (pub/sub by session), `Transcriber` port + mock adapter — with tests
 - [x] T3 Gemini adapter (chunk -> WAV -> generateContent JSON; rolling context) — unit tests with
       stubbed client
-- [ ] T4 Server: HTTP static + WS `/ingest/:session` and `/captions/:session` + `/api/sessions` — tests
+- [x] T4 Server: HTTP static + WS `/ingest/:session` and `/captions/:session` + `/api/sessions` — tests
 - [ ] T5 Frontend: `stage.html` (mic -> PCM16 AudioWorklet), `index.html` viewer (session/lang
       picker, captions), minimal styling
 - [ ] T6 Simulation script (WAV -> N sessions), Dockerfile, docker-compose, README deploy docs
@@ -75,7 +75,22 @@ RDD: not enabled by user (default off) -> `disabled/unmanaged`.
   `ai.models.generateContent(params) => Promise<GenerateContentResponse>` and
   `response.text: string | undefined`, matching the design. RED observed first (2 suites failing
   on missing module: pcm-to-wav, gemini-transcriber), then GREEN: 31/31 tests passing overall,
-  `tsc --noEmit` clean. Commit: (recorded after commit below).
+  `tsc --noEmit` clean. Commit: 3b23ee5.
+- T4 done. `loadConfig` (env parsing: PORT, TRANSCRIBER default from GEMINI_API_KEY presence,
+  GEMINI_MODEL, comma-separated SESSIONS with trim/empty-filter). `SessionPipelineManager`
+  (application-layer wiring: one AudioChunker + one TranscriptionPipeline per session, sharing one
+  Transcriber instance, lazily created, independent per session). `createServer` (node:http +
+  `ws`, no framework): `GET /api/sessions` (id/name/live/captionsCount), `GET
+  /api/sessions/:id/captions` (bus history), static file serving from `public/` with 404 fallback,
+  WS `/ingest/:session` (binary PCM16LE frames -> manager.ingest, marks session live on
+  connect/not-live on close), WS `/captions/:session` (sends history on connect, then live
+  fan-out via bus.subscribe). `src/main.ts` composition root wired (mock or Gemini transcriber
+  chosen from config; GoogleGenAI client imported dynamically only when TRANSCRIBER=gemini).
+  RED observed first (3 suites failing on missing module: config, session-pipeline-manager,
+  http-server), then GREEN: 46/46 tests passing overall (includes a real WS
+  ingest -> captions integration test on an ephemeral port with MockTranscriber), `tsc --noEmit`
+  clean. Manual smoke: `TRANSCRIBER=mock PORT=3998 npx tsx src/main.ts` served
+  `/api/sessions` correctly. Commit: (recorded after commit below).
 
 ## Next step
-Continue with T4 (HTTP + WS server).
+Continue with T5 (frontend: stage.html + index.html).
