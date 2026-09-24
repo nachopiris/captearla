@@ -177,7 +177,7 @@ RDD: not enabled by user (default off) -> `disabled/unmanaged`.
     per-language text and skips missing translations; (g) `reset()` clears dedupe state. RED
     observed first (`Failed to load url ../../public/viewer-core.js ... Does the file exist?` —
     missing module), then GREEN: 58/58 tests passing overall (51 pre-existing + 7 new).
-  - Commit: 8f9db8d.
+  - Commit: 0e43202.
 - Final verification for T7 (all in foreground):
   - `npm test`: 58/58 passing.
   - `npm run typecheck`: clean, no errors.
