@@ -30,24 +30,28 @@ function contentTypeFor(path: string): string {
   return MIME_TYPES[extname(path).toLowerCase()] ?? "application/octet-stream";
 }
 
-function sendJson(res: import("node:http").ServerResponse, status: number, body: unknown): void {
+function sendJson(res: import("node:http").ServerResponse, status: number, body: unknown, isHead: boolean): void {
   const payload = JSON.stringify(body);
   res.writeHead(status, { "Content-Type": "application/json; charset=utf-8" });
-  res.end(payload);
+  res.end(isHead ? undefined : payload);
 }
 
-function serveStatic(staticRoot: string, pathname: string, res: import("node:http").ServerResponse): void {
+function serveStatic(staticRoot: string, pathname: string, res: import("node:http").ServerResponse, isHead: boolean): void {
   const relativePath = pathname === "/" ? "/index.html" : pathname;
   const resolvedRoot = resolve(staticRoot);
   const filePath = normalize(join(resolvedRoot, relativePath));
 
   if (!filePath.startsWith(resolvedRoot) || !existsSync(filePath) || !statSync(filePath).isFile()) {
     res.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" });
-    res.end("Not found");
+    res.end(isHead ? undefined : "Not found");
     return;
   }
 
   res.writeHead(200, { "Content-Type": contentTypeFor(filePath) });
+  if (isHead) {
+    res.end();
+    return;
+  }
   createReadStream(filePath).pipe(res);
 }
 
@@ -64,26 +68,28 @@ export function createServer(deps: HttpServerDeps): Server {
 
   const server = createHttpServer((req, res) => {
     const url = new URL(req.url ?? "/", "http://localhost");
+    const isHead = req.method === "HEAD";
+    const isReadable = req.method === "GET" || isHead;
 
-    if (req.method === "GET" && url.pathname === "/api/sessions") {
+    if (isReadable && url.pathname === "/api/sessions") {
       const sessions = registry.list().map((session) => ({
         id: session.id,
         name: session.name,
         live: session.live,
         captionsCount: bus.history(session.id).length
       }));
-      sendJson(res, 200, sessions);
+      sendJson(res, 200, sessions, isHead);
       return;
     }
 
     const captionsApiMatch = url.pathname.match(/^\/api\/sessions\/([^/]+)\/captions\/?$/);
-    if (req.method === "GET" && captionsApiMatch) {
-      sendJson(res, 200, bus.history(captionsApiMatch[1]));
+    if (isReadable && captionsApiMatch) {
+      sendJson(res, 200, bus.history(captionsApiMatch[1]), isHead);
       return;
     }
 
-    if (req.method === "GET") {
-      serveStatic(staticRoot, url.pathname, res);
+    if (isReadable) {
+      serveStatic(staticRoot, url.pathname, res, isHead);
       return;
     }
 

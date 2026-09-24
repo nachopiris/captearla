@@ -115,6 +115,19 @@ describe("HTTP + WS server", () => {
     expect(response.status).toBe(404);
   });
 
+  it("answers HEAD requests for static files without a body", async () => {
+    const response = await fetch(`${baseUrl}/`, { method: "HEAD" });
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toContain("text/html");
+    expect(await response.text()).toBe("");
+  });
+
+  it("answers HEAD requests for the JSON API", async () => {
+    const response = await fetch(`${baseUrl}/api/sessions`, { method: "HEAD" });
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toContain("application/json");
+  });
+
   it("streams ingested audio through to a captions WebSocket client and the history API", async () => {
     const captionsSocket = new WebSocket(`${wsBaseUrl}/captions/main-stage`);
     await waitForOpen(captionsSocket);
