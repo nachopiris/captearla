@@ -79,7 +79,7 @@ const connection = createCaptionConnection({
 function selectSession(sessionId) {
   if (sessionId === currentSession) return;
   currentSession = sessionId;
-  writeStorage("livecap.viewer.session", sessionId);
+  writeStorage("captearla.viewer.session", sessionId);
   updateUrl(sessionId, langSelect.value);
   buffer.reset();
   renderLines();
@@ -107,7 +107,7 @@ async function refreshSessions() {
   if (sessions.length === 0) return;
 
   const stillExists = sessions.some((s) => s.id === previouslySelected);
-  const wanted = paramsFromUrl().get("session") ?? readStorage("livecap.viewer.session");
+  const wanted = paramsFromUrl().get("session") ?? readStorage("captearla.viewer.session");
   const wantedExists = sessions.some((s) => s.id === wanted);
 
   if (!currentSession) {
@@ -118,12 +118,12 @@ async function refreshSessions() {
   }
 }
 
-langSelect.value = paramsFromUrl().get("lang") ?? readStorage("livecap.viewer.lang") ?? "original";
+langSelect.value = paramsFromUrl().get("lang") ?? readStorage("captearla.viewer.lang") ?? "original";
 
 sessionSelect.addEventListener("change", () => selectSession(sessionSelect.value));
 
 langSelect.addEventListener("change", () => {
-  writeStorage("livecap.viewer.lang", langSelect.value);
+  writeStorage("captearla.viewer.lang", langSelect.value);
   if (currentSession) updateUrl(currentSession, langSelect.value);
   renderLines();
 });

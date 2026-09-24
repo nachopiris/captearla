@@ -17,7 +17,7 @@ const logger = {
 
 async function buildTranscriber(config: ReturnType<typeof loadConfig>): Promise<Transcriber> {
   if (config.transcriber === "mock") {
-    console.log("[livecap] using MockTranscriber (no network, deterministic captions)");
+    console.log("[captearla] using MockTranscriber (no network, deterministic captions)");
     return new MockTranscriber();
   }
 
@@ -27,7 +27,7 @@ async function buildTranscriber(config: ReturnType<typeof loadConfig>): Promise<
 
   const { GoogleGenAI } = await import("@google/genai");
   const client = new GoogleGenAI({ apiKey: config.geminiApiKey });
-  console.log(`[livecap] using GeminiTranscriber (model: ${config.geminiModel})`);
+  console.log(`[captearla] using GeminiTranscriber (model: ${config.geminiModel})`);
   return new GeminiTranscriber({ client, model: config.geminiModel, logger });
 }
 
@@ -48,12 +48,12 @@ async function main(): Promise<void> {
 
   const server = createServer({ registry, bus, manager, staticRoot });
   server.listen(config.port, () => {
-    console.log(`[livecap] listening on http://localhost:${config.port}`);
-    console.log(`[livecap] sessions: ${registry.list().map((s) => s.id).join(", ")}`);
+    console.log(`[captearla] listening on http://localhost:${config.port}`);
+    console.log(`[captearla] sessions: ${registry.list().map((s) => s.id).join(", ")}`);
   });
 }
 
 main().catch((error) => {
-  console.error("[livecap] fatal startup error", error);
+  console.error("[captearla] fatal startup error", error);
   process.exitCode = 1;
 });

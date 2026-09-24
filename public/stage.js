@@ -21,7 +21,7 @@ let levelAnimationFrame = null;
 
 function readStoredSession() {
   try {
-    return localStorage.getItem("livecap.stage.session") ?? "";
+    return localStorage.getItem("captearla.stage.session") ?? "";
   } catch {
     return "";
   }
@@ -29,7 +29,7 @@ function readStoredSession() {
 
 function storeSession(session) {
   try {
-    localStorage.setItem("livecap.stage.session", session);
+    localStorage.setItem("captearla.stage.session", session);
   } catch {
     // Ignore storage failures (private mode, disabled storage, etc.).
   }

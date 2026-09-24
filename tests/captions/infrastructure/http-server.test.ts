@@ -59,7 +59,7 @@ describe("HTTP + WS server", () => {
   let registry: SessionRegistry;
 
   beforeEach(async () => {
-    staticRoot = mkdtempSync(join(tmpdir(), "livecap-static-"));
+    staticRoot = mkdtempSync(join(tmpdir(), "captearla-static-"));
     writeFileSync(join(staticRoot, "index.html"), "<html><body>hello test</body></html>");
 
     registry = new SessionRegistry(["main-stage"]);

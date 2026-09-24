@@ -1,4 +1,9 @@
-# livecap
+# Captearla
+
+> So nobody misses the talk.
+
+*Captearla* blends **caption** with the Rioplatense *-earla* ending of
+Nerdearla, and plays on the Spanish *captarla*: to catch it, to get it.
 
 Open source, real-time transcription and captioning for conferences: live
 stage audio in, live captions out — in the original language, plus Spanish
