@@ -46,6 +46,10 @@ RDD: not enabled by user (default off) -> `disabled/unmanaged`.
 - [x] T5 Frontend: `stage.html` (mic -> PCM16 AudioWorklet), `index.html` viewer (session/lang
       picker, captions), minimal styling
 - [x] T6 Simulation script (WAV -> N sessions), Dockerfile, docker-compose, README deploy docs
+- [x] T7 Fix viewer reconnect ping-pong and history replay: extract pure `viewer-core.js`
+      (caption buffer + connection state machine) with tests, so switching sessions doesn't
+      trigger an infinite close/reconnect loop between the old and new socket, and doesn't
+      blank/reflow the screen with replayed history on every reconnect
 
 ## Acceptance criteria
 - `npm test` green; `npm run build` passes typecheck.
@@ -138,7 +142,52 @@ RDD: not enabled by user (default off) -> `disabled/unmanaged`.
     returned one caption, and `/api/sessions` showed `live:true, captionsCount:1` for
     main-stage; server and simulate processes killed afterward, no stray listeners left.
 
+- T7 done. Root cause confirmed by reading `public/viewer.js`: `connect(sessionId)` called
+  `socket?.close()` on the previous socket, whose unconditional `close` listener rescheduled a
+  reconnect to *its own* (now stale) session — switching session A -> B produced an infinite
+  close/reconnect ping-pong (A closes -> reconnects A -> closes B -> reconnects B -> ...) every
+  1.5s. Also every `connect()` cleared `lines` and the server replays WS history on connect
+  (`src/captions/infrastructure/http-server.ts`), so the screen blanked/reflowed on every
+  reconnect, and stored rendered text meant a language change didn't re-render existing captions.
+  Extracted pure, DOM-free `public/viewer-core.js`:
+  - `createCaptionBuffer(max)`: `add(caption)` rejects (returns false) a caption whose id was
+    already seen or whose seq is <= the highest seq already seen (dedupes replayed history),
+    keeps the last `max` non-empty captions ordered by seq; `lines(lang)` renders
+    original/es/en text per caption and skips empty translations; `reset()` clears dedupe state
+    (called only on an explicit session switch, never on an internal reconnect).
+  - `createCaptionConnection({ createSocket, onCaption, onStatus, setTimer, clearTimer, retryMs })`:
+    every socket's listeners check `socket !== currentSocket` and no-op if stale; `connect()`
+    always clears any pending reconnect timer, points `currentSocket` at the new socket, *then*
+    closes the previous one — so the previous socket's own close event is recognized as stale and
+    never reschedules a reconnect; a genuine drop of the still-current socket schedules exactly
+    one reconnect to the same session after `retryMs`.
+  - `public/viewer.js` now composes both: `buffer.reset()` + re-render only in `selectSession`
+    (session switch), caption buffer/render on every `onCaption`, and re-render on language change
+    (`langSelect` "change" listener) so switching Original/Español/English re-renders already
+    buffered captions instead of needing new ones to arrive. `public/index.html` already loaded
+    `viewer.js` as `type="module"`, so no change needed there.
+  - `tsconfig.json`: added `"allowJs": true` (checkJs stays default-off) so `tsc --noEmit` can
+    resolve the test's import of the plain-JS `public/viewer-core.js` without type-checking the
+    frontend file itself, consistent with the "no build step, vanilla JS frontend" constraint.
+  - TDD (strict, vitest): `tests/viewer/viewer-core.test.ts`, 7 cases — (a) switching A->B then
+    firing A's close: no reconnect scheduled, no status/caption from A; (b) genuine drop of the
+    current socket: reconnect to the same session after `retryMs`; (c) connecting to B cancels a
+    pending reconnect to A; (d) `close()` tears down without scheduling a reconnect; (e) buffer
+    dedupes replayed history by id/seq and keeps last N by seq; (f) `lines(lang)` returns
+    per-language text and skips missing translations; (g) `reset()` clears dedupe state. RED
+    observed first (`Failed to load url ../../public/viewer-core.js ... Does the file exist?` —
+    missing module), then GREEN: 58/58 tests passing overall (51 pre-existing + 7 new).
+  - Commit: 8f9db8d.
+- Final verification for T7 (all in foreground):
+  - `npm test`: 58/58 passing.
+  - `npm run typecheck`: clean, no errors.
+  - `node --check public/viewer.js public/viewer-core.js`: both OK (valid ESM syntax).
+  - Smoke: `TRANSCRIBER=mock PORT=3998 npm start` in background; `curl -sI
+    localhost:3998/viewer-core.js` -> `200 OK`, `Content-Type: text/javascript; charset=utf-8`;
+    server process stopped afterward (confirmed via `curl` timing out on the port).
+
 ## Next step
-None. T1-T6 implemented, tested (strict TDD RED->GREEN throughout), committed as one work-unit
-commit per task plus one follow-up fix commit, and independently smoke-verified end to end
-(server, simulate script, Docker image). No known gaps against the acceptance criteria.
+None. T1-T7 implemented, tested (strict TDD RED->GREEN throughout), committed as one work-unit
+commit per task plus two follow-up fix commits (HEAD-request fix, viewer reconnect/history-replay
+fix), and independently smoke-verified end to end (server, simulate script, Docker image). No
+known gaps against the acceptance criteria.

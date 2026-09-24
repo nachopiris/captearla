@@ -1,6 +1,13 @@
 // Audience viewer: pick a session and a language, and show the last few
 // captions for that session with the newest one emphasized. Reconnects
 // automatically if the WebSocket drops, and remembers the last choices.
+//
+// The reconnect state machine and the caption buffer live in viewer-core.js
+// (DOM-free, unit-tested) so switching sessions never fights its own old
+// socket, and a reconnect after a genuine drop replays history into the
+// buffer's dedupe instead of visibly blanking/reflowing the screen.
+
+import { createCaptionBuffer, createCaptionConnection } from "./viewer-core.js";
 
 const MAX_VISIBLE_LINES = 4;
 
@@ -10,10 +17,8 @@ const statusBadge = document.getElementById("statusBadge");
 const projectorButton = document.getElementById("projectorButton");
 const captionsEl = document.getElementById("captions");
 
-let socket = null;
-let reconnectTimer = null;
 let currentSession = null;
-let lines = [];
+const buffer = createCaptionBuffer(MAX_VISIBLE_LINES);
 
 function readStorage(key) {
   try {
@@ -42,30 +47,14 @@ function updateUrl(sessionId, lang) {
   history.replaceState(null, "", `${location.pathname}?${params.toString()}`);
 }
 
-function textForLang(caption, lang) {
-  if (lang === "es") return caption.translations?.es ?? "";
-  if (lang === "en") return caption.translations?.en ?? "";
-  return caption.text;
-}
-
 function renderLines() {
   captionsEl.innerHTML = "";
-  for (const line of lines) {
+  for (const line of buffer.lines(langSelect.value)) {
     const div = document.createElement("div");
     div.className = "caption-line";
     div.textContent = line;
     captionsEl.appendChild(div);
   }
-}
-
-function pushCaption(caption, lang) {
-  const text = textForLang(caption, lang);
-  if (!text) return;
-  lines.push(text);
-  if (lines.length > MAX_VISIBLE_LINES) {
-    lines = lines.slice(lines.length - MAX_VISIBLE_LINES);
-  }
-  renderLines();
 }
 
 function setStatus(text, isLive) {
@@ -78,40 +67,22 @@ function wsUrl(path) {
   return `${protocol}//${location.host}${path}`;
 }
 
-function connect(sessionId) {
-  clearTimeout(reconnectTimer);
-  socket?.close();
-  lines = [];
-  renderLines();
-  setStatus("connecting…", false);
-
-  socket = new WebSocket(wsUrl(`/captions/${encodeURIComponent(sessionId)}`));
-
-  socket.addEventListener("open", () => setStatus("live", true));
-
-  socket.addEventListener("message", (event) => {
-    try {
-      const caption = JSON.parse(event.data);
-      pushCaption(caption, langSelect.value);
-    } catch {
-      // Ignore malformed frames.
-    }
-  });
-
-  socket.addEventListener("close", () => {
-    setStatus("reconnecting…", false);
-    reconnectTimer = setTimeout(() => connect(sessionId), 1500);
-  });
-
-  socket.addEventListener("error", () => socket.close());
-}
+const connection = createCaptionConnection({
+  createSocket: (sessionId) => new WebSocket(wsUrl(`/captions/${encodeURIComponent(sessionId)}`)),
+  onCaption: (caption) => {
+    if (buffer.add(caption)) renderLines();
+  },
+  onStatus: setStatus
+});
 
 function selectSession(sessionId) {
   if (sessionId === currentSession) return;
   currentSession = sessionId;
   writeStorage("livecap.viewer.session", sessionId);
   updateUrl(sessionId, langSelect.value);
-  connect(sessionId);
+  buffer.reset();
+  renderLines();
+  connection.connect(sessionId);
 }
 
 async function refreshSessions() {
@@ -153,6 +124,7 @@ sessionSelect.addEventListener("change", () => selectSession(sessionSelect.value
 langSelect.addEventListener("change", () => {
   writeStorage("livecap.viewer.lang", langSelect.value);
   if (currentSession) updateUrl(currentSession, langSelect.value);
+  renderLines();
 });
 
 projectorButton.addEventListener("click", () => {
