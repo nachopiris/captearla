@@ -201,8 +201,14 @@ RDD: not enabled by user (default off) -> `disabled/unmanaged`.
   on mock server served `projectorExitButton` and the new viewer.js. Browser fullscreen behavior
   not exercised automatically (manual check by user).
 
+- Rename: project renamed to Captearla (5a5724e); local folder still `livecap`.
+- Delivery: public repo https://github.com/nachopiris/captearla, `main` and the feature branch
+  pushed, single PR https://github.com/nachopiris/captearla/pull/1 (single-pr accepted for the
+  hackathon entry; user authorized push + PR). Manual Gemini + mic run and viewer fixes confirmed
+  by the user. RDD disabled/unmanaged.
+
 ## Next step
-Manual check with a real `GEMINI_API_KEY` and mic (user); publish repo (user decision).
+User merges PR #1 and submits the repo before 2026-09-25 15:00 UTC.
 Previously: T1-T7 implemented, tested (strict TDD RED->GREEN throughout), committed as one work-unit
 commit per task plus two follow-up fix commits (HEAD-request fix, viewer reconnect/history-replay
 fix), and independently smoke-verified end to end (server, simulate script, Docker image). No
