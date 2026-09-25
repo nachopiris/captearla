@@ -137,36 +137,43 @@ export class TranscriptionPipeline {
   private finalize(entry: SettledEntry): void {
     const { outcome, chunkTs, resolveEnqueue } = entry;
 
-    if (!outcome.ok) {
-      this.deps.logger?.error(`Transcription failed for session "${this.deps.sessionId}"`, outcome.error);
+    try {
+      if (!outcome.ok) {
+        this.deps.logger?.error(`Transcription failed for session "${this.deps.sessionId}"`, outcome.error);
+        return;
+      }
+
+      const result = outcome.result;
+      if (!result.text.trim()) {
+        return;
+      }
+
+      const caption: Caption = {
+        id: this.deps.idGenerator?.() ?? defaultId(),
+        sessionId: this.deps.sessionId,
+        seq: this.seq++,
+        text: result.text,
+        lang: result.lang,
+        translations: { es: result.es, en: result.en },
+        final: true,
+        ts: this.deps.now?.() ?? Date.now(),
+        chunkTs
+      };
+
+      this.contextHistory.push(result.text);
+      if (this.contextHistory.length > this.contextSize) {
+        this.contextHistory.shift();
+      }
+
+      // The caption is already recorded in the bus's history at this point
+      // (publish() records it before notifying listeners), so a throwing
+      // listener must not stop this slot from resolving or block the rest
+      // of the reorder buffer from flushing.
+      this.deps.bus.publish(caption);
+    } catch (error) {
+      this.deps.logger?.error(`Transcription failed for session "${this.deps.sessionId}"`, error);
+    } finally {
       resolveEnqueue();
-      return;
     }
-
-    const result = outcome.result;
-    if (!result.text.trim()) {
-      resolveEnqueue();
-      return;
-    }
-
-    const caption: Caption = {
-      id: this.deps.idGenerator?.() ?? defaultId(),
-      sessionId: this.deps.sessionId,
-      seq: this.seq++,
-      text: result.text,
-      lang: result.lang,
-      translations: { es: result.es, en: result.en },
-      final: true,
-      ts: this.deps.now?.() ?? Date.now(),
-      chunkTs
-    };
-
-    this.contextHistory.push(result.text);
-    if (this.contextHistory.length > this.contextSize) {
-      this.contextHistory.shift();
-    }
-
-    this.deps.bus.publish(caption);
-    resolveEnqueue();
   }
 }

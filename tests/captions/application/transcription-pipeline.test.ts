@@ -127,6 +127,34 @@ describe("TranscriptionPipeline", () => {
     expect(history[0].text).toBe("recovered");
   });
 
+  it("logs a throwing caption listener and keeps ordered publish alive for later chunks", async () => {
+    const bus = new CaptionBus();
+    const logger = { error: vi.fn() };
+    bus.subscribe("main-stage", (caption) => {
+      if (caption.seq === 0) {
+        throw new Error("listener boom");
+      }
+    });
+    let call = 0;
+    const transcriber: Transcriber = {
+      transcribe: vi.fn(async () => result(`t${++call}`))
+    };
+    const pipeline = new TranscriptionPipeline({ transcriber, bus, sessionId: "main-stage", logger });
+
+    // The first chunk's enqueue promise must resolve even though its
+    // caption listener throws.
+    await pipeline.enqueue(chunkOf());
+
+    expect(logger.error).toHaveBeenCalledTimes(1);
+    expect(bus.history("main-stage")).toHaveLength(1);
+
+    // A later chunk must still publish normally.
+    await pipeline.enqueue(chunkOf());
+
+    const history = bus.history("main-stage");
+    expect(history.map((c) => c.seq)).toEqual([0, 1]);
+  });
+
   it("stamps chunkTs with the enqueue-time value of now(), distinct from the later publish-time ts", async () => {
     const bus = new CaptionBus();
     let now = 1000;
