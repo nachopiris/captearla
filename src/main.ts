@@ -18,7 +18,12 @@ const logger = {
 async function buildTranscriber(config: ReturnType<typeof loadConfig>): Promise<Transcriber> {
   if (config.transcriber === "mock") {
     console.log("[captearla] using MockTranscriber (no network, deterministic captions)");
-    return new MockTranscriber();
+    if (config.mockLatencyMs !== 0 || config.mockLatencyJitterMs !== 0) {
+      console.log(
+        `[captearla] MockTranscriber simulated latency: ${config.mockLatencyMs}ms +/- ${config.mockLatencyJitterMs}ms`
+      );
+    }
+    return new MockTranscriber({ latencyMs: config.mockLatencyMs, jitterMs: config.mockLatencyJitterMs });
   }
 
   if (!config.geminiApiKey) {

@@ -6,6 +6,10 @@ export interface Config {
   geminiApiKey?: string;
   geminiModel: string;
   sessions: string[];
+  /** Simulated MockTranscriber latency in milliseconds. Default 0. */
+  mockLatencyMs: number;
+  /** Simulated MockTranscriber latency jitter in milliseconds. Default 0. */
+  mockLatencyJitterMs: number;
 }
 
 const DEFAULT_PORT = 3000;
@@ -31,6 +35,14 @@ function parseTranscriberKind(env: EnvSource): TranscriberKind {
   return env.GEMINI_API_KEY ? "gemini" : "mock";
 }
 
+/** Parses a non-negative millisecond duration; non-finite or negative values fall back to 0. */
+function parseNonNegativeMs(raw: string | undefined): number {
+  if (raw === undefined) return 0;
+  const value = Number(raw);
+  if (!Number.isFinite(value) || value < 0) return 0;
+  return value;
+}
+
 /** Loads and validates runtime configuration from environment variables. */
 export function loadConfig(env: EnvSource): Config {
   const port = env.PORT ? Number(env.PORT) : DEFAULT_PORT;
@@ -39,6 +51,8 @@ export function loadConfig(env: EnvSource): Config {
     transcriber: parseTranscriberKind(env),
     geminiApiKey: env.GEMINI_API_KEY,
     geminiModel: env.GEMINI_MODEL ?? DEFAULT_GEMINI_MODEL,
-    sessions: parseSessions(env.SESSIONS)
+    sessions: parseSessions(env.SESSIONS),
+    mockLatencyMs: parseNonNegativeMs(env.MOCK_LATENCY_MS),
+    mockLatencyJitterMs: parseNonNegativeMs(env.MOCK_LATENCY_JITTER_MS)
   };
 }
