@@ -18,6 +18,8 @@ export interface Config {
   mockLatencyJitterMs: number;
   /** Max concurrent `transcribe` calls per session. Default 3. */
   transcribeMaxInFlight: number;
+  /** Shared secret required on `/ingest/:session` as `?token=`. Unset leaves ingest open. */
+  stageToken?: string;
 }
 
 const DEFAULT_PORT = 3000;
@@ -66,6 +68,12 @@ function parseMaxInFlight(raw: string | undefined): number {
   return value;
 }
 
+/** Parses `STAGE_TOKEN`; trims whitespace and treats a blank/empty value as unset. */
+function parseStageToken(raw: string | undefined): string | undefined {
+  const value = raw?.trim();
+  return value ? value : undefined;
+}
+
 /** Loads and validates runtime configuration from environment variables. */
 export function loadConfig(env: EnvSource): Config {
   const port = env.PORT ? Number(env.PORT) : DEFAULT_PORT;
@@ -78,6 +86,7 @@ export function loadConfig(env: EnvSource): Config {
     sessions: parseSessions(env.SESSIONS),
     mockLatencyMs: parseNonNegativeMs(env.MOCK_LATENCY_MS),
     mockLatencyJitterMs: parseNonNegativeMs(env.MOCK_LATENCY_JITTER_MS),
-    transcribeMaxInFlight: parseMaxInFlight(env.TRANSCRIBE_MAX_IN_FLIGHT)
+    transcribeMaxInFlight: parseMaxInFlight(env.TRANSCRIBE_MAX_IN_FLIGHT),
+    stageToken: parseStageToken(env.STAGE_TOKEN)
   };
 }

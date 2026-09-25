@@ -50,6 +50,14 @@ function waitForMessage(ws: WebSocket): Promise<Caption> {
   });
 }
 
+/** Resolves once the handshake is rejected (an `error` event); rejects if it opens instead. */
+function waitForRejection(ws: WebSocket): Promise<void> {
+  return new Promise((resolve, reject) => {
+    ws.once("open", () => reject(new Error("expected the handshake to be rejected, but it opened")));
+    ws.once("error", () => resolve());
+  });
+}
+
 describe("HTTP + WS server", () => {
   let server: Server;
   let staticRoot: string;
@@ -203,5 +211,93 @@ describe("HTTP + WS server", () => {
     expect(sessions.find((s) => s.id === "room-a")?.name).toBe("Sala A");
 
     second.close();
+  });
+
+  it("accepts ingest connections with no ?token= when STAGE_TOKEN is unset", async () => {
+    const ingestSocket = new WebSocket(`${wsBaseUrl}/ingest/main-stage`);
+    await waitForOpen(ingestSocket);
+    ingestSocket.close();
+  });
+});
+
+describe("HTTP + WS server with STAGE_TOKEN set", () => {
+  const STAGE_TOKEN = "s3cret-stage-token";
+
+  let server: Server;
+  let staticRoot: string;
+  let baseUrl: string;
+  let wsBaseUrl: string;
+  let bus: CaptionBus;
+  let registry: SessionRegistry;
+
+  beforeEach(async () => {
+    staticRoot = mkdtempSync(join(tmpdir(), "captearla-static-"));
+    writeFileSync(join(staticRoot, "index.html"), "<html><body>hello test</body></html>");
+
+    registry = new SessionRegistry(["main-stage"]);
+    bus = new CaptionBus();
+    const manager = new SessionPipelineManager({
+      bus,
+      transcriber: new MockTranscriber(),
+      chunkerOptions: {
+        sampleRate: SAMPLE_RATE,
+        minDurationMs: 100,
+        maxDurationMs: 300,
+        trailingSilenceMs: 50,
+        silenceRmsThreshold: 500
+      }
+    });
+
+    server = createServer({ registry, bus, manager, staticRoot, stageToken: STAGE_TOKEN });
+    await new Promise<void>((resolve) => server.listen(0, resolve));
+    const { port } = server.address() as AddressInfo;
+    baseUrl = `http://127.0.0.1:${port}`;
+    wsBaseUrl = `ws://127.0.0.1:${port}`;
+  });
+
+  afterEach(async () => {
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+    rmSync(staticRoot, { recursive: true, force: true });
+  });
+
+  it("rejects an ingest connection with no ?token=", async () => {
+    const ingestSocket = new WebSocket(`${wsBaseUrl}/ingest/main-stage`);
+    await waitForRejection(ingestSocket);
+  });
+
+  it("rejects an ingest connection with the wrong ?token=", async () => {
+    const ingestSocket = new WebSocket(`${wsBaseUrl}/ingest/main-stage?token=wrong-token`);
+    await waitForRejection(ingestSocket);
+  });
+
+  it("accepts an ingest connection with the correct ?token= and lets audio ingest work", async () => {
+    const captionsSocket = new WebSocket(`${wsBaseUrl}/captions/main-stage`);
+    await waitForOpen(captionsSocket);
+
+    const ingestSocket = new WebSocket(`${wsBaseUrl}/ingest/main-stage?token=${encodeURIComponent(STAGE_TOKEN)}`);
+    await waitForOpen(ingestSocket);
+
+    const nextCaption = waitForMessage(captionsSocket);
+
+    ingestSocket.send(Buffer.from(tone(samplesFor(150)).buffer));
+    ingestSocket.send(Buffer.from(silence(samplesFor(60)).buffer));
+
+    const caption = await nextCaption;
+    expect(caption.sessionId).toBe("main-stage");
+    expect(caption.text.length).toBeGreaterThan(0);
+
+    captionsSocket.close();
+    ingestSocket.close();
+  });
+
+  it("does not create or rename a session for a rejected ingest attempt with ?name=", async () => {
+    const ingestSocket = new WebSocket(
+      `${wsBaseUrl}/ingest/intruder-room?name=${encodeURIComponent("Hijacked")}&token=wrong-token`
+    );
+    await waitForRejection(ingestSocket);
+
+    type SessionSummary = { id: string; name: string };
+    const sessions = (await (await fetch(`${baseUrl}/api/sessions`)).json()) as SessionSummary[];
+    expect(sessions.find((s) => s.id === "intruder-room")).toBeUndefined();
   });
 });
