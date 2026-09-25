@@ -10,8 +10,9 @@
 // to convert it with ffmpeg (see README.md).
 
 import { readFileSync } from "node:fs";
-import WebSocket from "ws";
+import type WebSocket from "ws";
 import { parseWavPcm16 } from "../src/captions/infrastructure/wav-to-pcm.js";
+import { sliceFrames, connectWebSocket, sleep } from "./stream-helpers.js";
 
 const FRAME_MS = 100;
 const EXPECTED_SAMPLE_RATE = 16000;
@@ -49,28 +50,11 @@ function parseArgs(argv: string[]): CliArgs {
   return { wavPath, sessions, host };
 }
 
-function sliceFrames(pcm: Int16Array, sampleRate: number, frameMs: number): Int16Array[] {
-  const samplesPerFrame = Math.round((sampleRate * frameMs) / 1000);
-  const frames: Int16Array[] = [];
-  for (let offset = 0; offset < pcm.length; offset += samplesPerFrame) {
-    frames.push(pcm.subarray(offset, Math.min(offset + samplesPerFrame, pcm.length)));
-  }
-  return frames;
-}
-
-function connectIngest(host: string, sessionId: string): Promise<WebSocket> {
-  return new Promise((resolve, reject) => {
-    const socket = new WebSocket(`ws://${host}/ingest/${encodeURIComponent(sessionId)}`);
-    socket.once("open", () => resolve(socket));
-    socket.once("error", reject);
-  });
-}
-
 async function streamSessionForever(host: string, sessionId: string, frames: Int16Array[], frameMs: number): Promise<void> {
   for (;;) {
     let socket: WebSocket;
     try {
-      socket = await connectIngest(host, sessionId);
+      socket = await connectWebSocket(`ws://${host}/ingest/${encodeURIComponent(sessionId)}`);
     } catch (error) {
       console.error(`[simulate:${sessionId}] failed to connect, retrying in 2s:`, (error as Error).message);
       await sleep(2000);
@@ -87,10 +71,6 @@ async function streamSessionForever(host: string, sessionId: string, frames: Int
 
     socket.close();
   }
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 async function main(): Promise<void> {
