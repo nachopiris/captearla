@@ -171,7 +171,7 @@ export class TranscriptionPipeline {
       // of the reorder buffer from flushing.
       this.deps.bus.publish(caption);
     } catch (error) {
-      this.deps.logger?.error(`Transcription failed for session "${this.deps.sessionId}"`, error);
+      this.deps.logger?.error(`Publishing caption failed for session "${this.deps.sessionId}"`, error);
     } finally {
       resolveEnqueue();
     }

@@ -146,6 +146,7 @@ describe("TranscriptionPipeline", () => {
     await pipeline.enqueue(chunkOf());
 
     expect(logger.error).toHaveBeenCalledTimes(1);
+    expect(logger.error).toHaveBeenCalledWith('Publishing caption failed for session "main-stage"', expect.any(Error));
     expect(bus.history("main-stage")).toHaveLength(1);
 
     // A later chunk must still publish normally.
