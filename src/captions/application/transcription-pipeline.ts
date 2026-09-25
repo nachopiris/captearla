@@ -43,14 +43,17 @@ export class TranscriptionPipeline {
   }
 
   enqueue(chunk: AudioChunkInput): Promise<void> {
-    const next = this.queue.then(() => this.process(chunk));
+    // Captured synchronously, at the moment the chunk is cut and handed off,
+    // not when it eventually gets processed or published.
+    const chunkTs = this.deps.now?.() ?? Date.now();
+    const next = this.queue.then(() => this.process(chunk, chunkTs));
     // Keep the queue alive even if this chunk's processing failed, so later
     // chunks are still attempted; failures are already caught in process().
     this.queue = next;
     return next;
   }
 
-  private async process(chunk: AudioChunkInput): Promise<void> {
+  private async process(chunk: AudioChunkInput, chunkTs: number): Promise<void> {
     try {
       const result = await this.deps.transcriber.transcribe({
         pcm: chunk.pcm,
@@ -70,7 +73,8 @@ export class TranscriptionPipeline {
         lang: result.lang,
         translations: { es: result.es, en: result.en },
         final: true,
-        ts: this.deps.now?.() ?? Date.now()
+        ts: this.deps.now?.() ?? Date.now(),
+        chunkTs
       };
 
       this.contextHistory.push(result.text);

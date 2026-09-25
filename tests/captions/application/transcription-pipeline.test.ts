@@ -106,4 +106,23 @@ describe("TranscriptionPipeline", () => {
     expect(history).toHaveLength(1);
     expect(history[0].text).toBe("recovered");
   });
+
+  it("stamps chunkTs with the enqueue-time value of now(), distinct from the later publish-time ts", async () => {
+    const bus = new CaptionBus();
+    let now = 1000;
+    const transcriber: Transcriber = {
+      transcribe: vi.fn(async () => {
+        // Simulate model latency elapsing between enqueue and publish.
+        now = 9000;
+        return { text: "hello", lang: "en", es: "hola", en: "hello" };
+      })
+    };
+    const pipeline = new TranscriptionPipeline({ transcriber, bus, sessionId: "main-stage", now: () => now });
+
+    await pipeline.enqueue(chunkOf());
+
+    const [caption] = bus.history("main-stage");
+    expect(caption.chunkTs).toBe(1000);
+    expect(caption.ts).toBe(9000);
+  });
 });
