@@ -1,7 +1,6 @@
 # Feature: load-bench
 
-Locator: `odd/tasks/load-bench.md` · Engram mirror: `odd/load-bench/tasks` (PENDING: engram
-returned `ambiguous_project`; awaiting user project choice)
+Locator: `odd/tasks/load-bench.md` · Engram mirror: `odd/load-bench/tasks` (project `livecap`)
 
 ## Objective
 Measure caption latency under many parallel sessions, reproducibly and without spending on Gemini,
@@ -42,7 +41,7 @@ Branch: `feat/load-bench` (from `main`).
 - [x] T2 Chunk timestamp: `Caption.chunkTs?: number`, set by `TranscriptionPipeline` to `now()` at
       `enqueue` time (when the chunk was cut), so `receivedAt - chunkTs` = queue wait + model
       latency + delivery.
-- [ ] T3 Bench: `scripts/bench-stats.ts` (pure: percentiles p50/p95/max, per-session drift =
+- [x] T3 Bench: `scripts/bench-stats.ts` (pure: percentiles p50/p95/max, per-session drift =
       least-squares slope of latency over elapsed time, pass/fail vs threshold) with tests;
       `scripts/bench.ts` streams a WAV into `--sessions N` (or a list) for `--duration`, subscribes
       to `/captions/:session`, prints a per-session + overall report, exits non-zero when drift
@@ -79,5 +78,48 @@ Branch: `feat/load-bench` (from `main`).
 - `npm test`: 83/83 passed. `npm run typecheck`: clean.
 - Commit: `a91fe7e` feat(captions): stamp chunk enqueue time.
 
+### T3 Bench
+- RED: `npx vitest run tests/scripts/bench-stats.test.ts` — all 16 tests failed to even collect
+  first: "Failed to load url ../../scripts/bench-stats.js ... Does the file exist?" (module did
+  not exist yet).
+- GREEN: implemented `scripts/bench-stats.ts` (`percentile` via nearest-rank method, documented in
+  its doc comment; `summarize` computing count/p50/p95/max plus `driftMsPerMin` as the
+  least-squares slope of latency over elapsed time scaled to ms/min, 0 with <2 samples or a
+  degenerate/zero-variance elapsed axis; `isBacklogging` with a configurable threshold, default
+  `DEFAULT_BACKLOG_DRIFT_THRESHOLD_MS_PER_MIN = 500`). `npx vitest run tests/scripts/bench-stats.test.ts`
+  -> 16/16 passed.
+- Extracted `sliceFrames`/`connectWebSocket`/`sleep` from `simulate.ts` into
+  `scripts/stream-helpers.ts` and reused them in `simulate.ts` (behavior unchanged, verified by
+  running its usage-error path and the existing exemption from unit tests).
+- Implemented `scripts/bench.ts` (CLI/WS glue, exempt from unit tests like `simulate.ts`, verified
+  by typecheck and a manual usage-error run): `--sessions N|a,b,c`, `--duration` (default 60s),
+  `--host`, `--max-drift`; opens `/captions/:session` before streaming; records
+  `latency = Date.now() - chunkTs`, ignoring captions with no/stale `chunkTs` (predating bench
+  start, e.g. history sent on connect); after duration, waits a 10s grace period, then prints a
+  per-session + overall p50/p95/max/drift table and exits non-zero on backlog.
+- Added `"bench": "tsx scripts/bench.ts"` to `package.json` and a README "Load testing" section
+  (mock-latency run, bench invocation, how to read `driftMsPerMin`/`BACKLOG`, real-Gemini cost/
+  rate-limit note).
+- `npm test`: 99/99 passed. `npm run typecheck`: clean.
+- Commit: `dd05f44` feat(bench): add multi-session latency bench.
+
+### Smoke checks (5 sessions, 12s tone/silence WAV, mock server)
+- `MOCK_LATENCY_MS=1500`, 20s: every session p50 1500 / p95 1501 ms, drift ~0 ms/min -> ok, exit 0.
+- `MOCK_LATENCY_MS=8000` (> 6s max chunk), 40s: p50 ~16s / p95 ~24s, drift ~59800 ms/min ->
+  BACKLOG, exit 1. Confirms the serialized per-session queue falls behind when model latency
+  exceeds chunk duration.
+- Orchestrator spot check: `npm test` 99/99, `npm run typecheck` clean.
+
+### Delivery note
+Authored diff ~850 lines vs ~400 forecast (tests + helper extraction from `simulate.ts`). User
+chose chain strategy `stacked-to-main`, 3 slices (original T3 commit `dd05f44` split in two):
+- PR 1 `feat/load-bench-01-mock-latency` -> `main`: `313a5e2`, `a91fe7e`, `b2d1d3f` (244 lines,
+  83/83 tests standalone).
+- PR 2 `feat/load-bench-02-bench-stats` -> PR 1: `494a5bd` (202 lines).
+- PR 3 `feat/load-bench-03-bench-cli` -> PR 2: `9642c3e` + docs (~420 lines incl. this doc;
+  slightly over budget because of the ODD doc, code alone ~375).
+Final tree of PR 3 verified identical to the pre-split `feat/load-bench` (`f659f30`).
+
 ## Next step
-T3 (bench-stats.ts, bench.ts, npm run bench, README section), then smoke checks.
+Review/merge PRs in order; retarget each child to `main` after its parent merges. Candidate
+follow-up: ordered-but-concurrent transcription to remove the backlog (improvement #3).
