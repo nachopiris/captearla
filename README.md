@@ -129,8 +129,11 @@ docker compose up --build
 - A "projector mode" toggle on the viewer hides the chrome and goes
   fullscreen, for a screen mounted next to the stage.
 - Sessions are created automatically on first audio ingest, and can also be
-  pre-declared via the `SESSIONS` env var so they show up in the pickers
-  before anyone starts talking.
+  pre-declared via the `SESSIONS` env var so they show up in the stage's
+  picker before anyone starts talking. The audience viewer only lists
+  sessions that are currently live, by their display name; a session a
+  viewer already has open or selected stays listed (marked "offline") if the
+  speaker pauses, instead of disappearing from under them.
 - The stage's optional "Session name" field gives a session a human-readable
   display name (e.g. "Sala Principal") shown to the audience instead of the
   raw id; it's sent as `?name=` on the ingest WebSocket URL

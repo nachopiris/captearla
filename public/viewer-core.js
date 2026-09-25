@@ -141,6 +141,16 @@ export function createCaptionConnection({
 }
 
 /**
+ * Which sessions the audience picker should offer: live ones only, plus the
+ * currently kept session even when it just went offline (e.g. the speaker
+ * paused) so a viewer already on that link or selection isn't kicked out.
+ * Preserves input order.
+ */
+export function visibleSessions(sessions, keepId) {
+  return sessions.filter((session) => session.live || session.id === keepId);
+}
+
+/**
  * Projector mode state. Kept in sync with the browser's fullscreen state so
  * that leaving fullscreen from the browser (Esc, system gesture) also leaves
  * projector mode; otherwise the hidden top bar would leave no way back.
