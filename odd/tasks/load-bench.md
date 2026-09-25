@@ -120,6 +120,12 @@ chose chain strategy `stacked-to-main`, 3 slices (original T3 commit `dd05f44` s
   slightly over budget because of the ODD doc, code alone ~375).
 Final tree of PR 3 verified identical to the pre-split `feat/load-bench` (`f659f30`).
 
+### Merged
+Merged to `main` in order with merge commits, each child retargeted to `main` first:
+#2 `2494db9`, #3 `976eb5a`, #4 `2c5c8dc`. `main` after merge: 99/99 tests, typecheck clean.
+The repo had no CI at merge time; a GitHub Actions workflow (typecheck + tests) was added right
+after.
+
 ## Next step
-Review/merge PRs in order; retarget each child to `main` after its parent merges. Candidate
-follow-up: ordered-but-concurrent transcription to remove the backlog (improvement #3).
+Feature closed. Candidate follow-up: ordered-but-concurrent transcription to remove the backlog
+(improvement #3), measured before/after with `npm run bench`.
