@@ -1,7 +1,16 @@
 import { describe, expect, it, vi } from "vitest";
 import { SessionPipelineManager } from "../../../src/captions/application/session-pipeline-manager.js";
 import { CaptionBus } from "../../../src/captions/application/caption-bus.js";
-import type { Transcriber } from "../../../src/captions/domain/transcriber.js";
+import type { Transcriber, TranscribeResult } from "../../../src/captions/domain/transcriber.js";
+
+/** A promise whose resolution is controlled manually from the test body. */
+function deferred<T>(): { promise: Promise<T>; resolve: (value: T) => void } {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((res) => {
+    resolve = res;
+  });
+  return { promise, resolve };
+}
 
 const SAMPLE_RATE = 16000;
 
@@ -69,5 +78,32 @@ describe("SessionPipelineManager", () => {
     await manager.ingest("main-stage", tone(samplesFor(100)));
 
     expect(bus.history("main-stage")).toHaveLength(0);
+  });
+
+  it("forwards maxInFlight to the pipelines it creates", async () => {
+    const bus = new CaptionBus();
+    const deferreds = [deferred<TranscribeResult>(), deferred<TranscribeResult>()];
+    let callCount = 0;
+    const transcriber: Transcriber = {
+      transcribe: vi.fn(() => deferreds[callCount++].promise)
+    };
+    const chunkerOptions = { sampleRate: SAMPLE_RATE, minDurationMs: 200, maxDurationMs: 500, trailingSilenceMs: 100, silenceRmsThreshold: 500 };
+    const manager = new SessionPipelineManager({ bus, transcriber, chunkerOptions, maxInFlight: 1 });
+
+    // Two chunk-cutting bursts fed back-to-back without awaiting in between,
+    // so both would be dispatched immediately if maxInFlight weren't forwarded.
+    const p1 = manager.ingest("main-stage", tone(samplesFor(250)));
+    const p2 = manager.ingest("main-stage", silence(samplesFor(150)));
+    const p3 = manager.ingest("main-stage", tone(samplesFor(250)));
+    const p4 = manager.ingest("main-stage", silence(samplesFor(150)));
+
+    expect(transcriber.transcribe).toHaveBeenCalledTimes(1);
+
+    deferreds[0].resolve({ text: "a", lang: "en", es: "a", en: "a" });
+    deferreds[1].resolve({ text: "b", lang: "en", es: "b", en: "b" });
+    await Promise.all([p1, p2, p3, p4]);
+
+    expect(transcriber.transcribe).toHaveBeenCalledTimes(2);
+    expect(bus.history("main-stage")).toHaveLength(2);
   });
 });

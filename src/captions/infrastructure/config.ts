@@ -10,11 +10,14 @@ export interface Config {
   mockLatencyMs: number;
   /** Simulated MockTranscriber latency jitter in milliseconds. Default 0. */
   mockLatencyJitterMs: number;
+  /** Max concurrent `transcribe` calls per session. Default 3. */
+  transcribeMaxInFlight: number;
 }
 
 const DEFAULT_PORT = 3000;
 const DEFAULT_GEMINI_MODEL = "gemini-2.5-flash";
 const DEFAULT_SESSIONS = ["main-stage", "room-a", "room-b"];
+const DEFAULT_TRANSCRIBE_MAX_IN_FLIGHT = 3;
 
 export type EnvSource = Record<string, string | undefined>;
 
@@ -43,6 +46,14 @@ function parseNonNegativeMs(raw: string | undefined): number {
   return value;
 }
 
+/** Parses a positive integer max-in-flight count; anything else falls back to the default (3). */
+function parseMaxInFlight(raw: string | undefined): number {
+  if (raw === undefined) return DEFAULT_TRANSCRIBE_MAX_IN_FLIGHT;
+  const value = Number(raw);
+  if (!Number.isInteger(value) || value < 1) return DEFAULT_TRANSCRIBE_MAX_IN_FLIGHT;
+  return value;
+}
+
 /** Loads and validates runtime configuration from environment variables. */
 export function loadConfig(env: EnvSource): Config {
   const port = env.PORT ? Number(env.PORT) : DEFAULT_PORT;
@@ -53,6 +64,7 @@ export function loadConfig(env: EnvSource): Config {
     geminiModel: env.GEMINI_MODEL ?? DEFAULT_GEMINI_MODEL,
     sessions: parseSessions(env.SESSIONS),
     mockLatencyMs: parseNonNegativeMs(env.MOCK_LATENCY_MS),
-    mockLatencyJitterMs: parseNonNegativeMs(env.MOCK_LATENCY_JITTER_MS)
+    mockLatencyJitterMs: parseNonNegativeMs(env.MOCK_LATENCY_JITTER_MS),
+    transcribeMaxInFlight: parseMaxInFlight(env.TRANSCRIBE_MAX_IN_FLIGHT)
   };
 }

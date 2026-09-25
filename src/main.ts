@@ -42,9 +42,12 @@ async function main(): Promise<void> {
   const bus = new CaptionBus();
   const transcriber = await buildTranscriber(config);
 
+  console.log(`[captearla] max concurrent transcriptions per session: ${config.transcribeMaxInFlight}`);
+
   const manager = new SessionPipelineManager({
     bus,
     transcriber,
+    maxInFlight: config.transcribeMaxInFlight,
     logger
   });
 

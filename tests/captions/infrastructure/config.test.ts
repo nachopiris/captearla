@@ -58,4 +58,22 @@ describe("loadConfig", () => {
     const config = loadConfig({ MOCK_LATENCY_JITTER_MS: "-50" });
     expect(config.mockLatencyJitterMs).toBe(0);
   });
+
+  it("defaults transcribeMaxInFlight to 3 when unset", () => {
+    const config = loadConfig({});
+    expect(config.transcribeMaxInFlight).toBe(3);
+  });
+
+  it("parses TRANSCRIBE_MAX_IN_FLIGHT as a positive integer", () => {
+    const config = loadConfig({ TRANSCRIBE_MAX_IN_FLIGHT: "5" });
+    expect(config.transcribeMaxInFlight).toBe(5);
+  });
+
+  it.each(["0", "-2", "abc", "1.5"])(
+    "falls back to 3 for an invalid TRANSCRIBE_MAX_IN_FLIGHT (%s)",
+    (raw) => {
+      const config = loadConfig({ TRANSCRIBE_MAX_IN_FLIGHT: raw });
+      expect(config.transcribeMaxInFlight).toBe(3);
+    }
+  );
 });

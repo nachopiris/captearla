@@ -8,6 +8,8 @@ export interface SessionPipelineManagerDeps {
   transcriber: Transcriber;
   chunkerOptions?: AudioChunkerOptions;
   contextSize?: number;
+  /** Max concurrent `transcribe` calls per session, forwarded to each pipeline. Default 3. */
+  maxInFlight?: number;
   logger?: { error: (message: string, error: unknown) => void };
 }
 
@@ -51,6 +53,7 @@ export class SessionPipelineManager {
         bus: this.deps.bus,
         sessionId,
         contextSize: this.deps.contextSize,
+        maxInFlight: this.deps.maxInFlight,
         logger: this.deps.logger
       });
       this.pipelines.set(sessionId, pipeline);
