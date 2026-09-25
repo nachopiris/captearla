@@ -31,7 +31,7 @@ The `/ingest/:session` WebSocket upgrade (`src/captions/infrastructure/http-serv
 - `npm test` and `npm run typecheck` green.
 
 ## Progress / Evidence
-- T1 done. RED observed: `config.test.ts` "parses a STAGE_TOKEN..." failed (undefined vs "secret-token"); 3 new `http-server.test.ts` STAGE_TOKEN tests timed out waiting for rejection (handshake opened instead). GREEN after implementing `parseStageToken` in `config.ts`, `hasValidStageToken` + 401 gate in `http-server.ts` upgrade handler, and wiring in `main.ts`. `npm test`: 162/162 passed. `npm run typecheck`: clean. Commit: 4e0b6b9 `feat(ingest): require STAGE_TOKEN for audio ingest when configured`.
+- T1 done. RED observed: `config.test.ts` "parses a STAGE_TOKEN..." failed (undefined vs "secret-token"); 3 new `http-server.test.ts` STAGE_TOKEN tests timed out waiting for rejection (handshake opened instead). GREEN after implementing `parseStageToken` in `config.ts`, `hasValidStageToken` + 401 gate in `http-server.ts` upgrade handler, and wiring in `main.ts`. `npm test`: 162/162 passed. `npm run typecheck`: clean. Commit: 9642109 `feat(ingest): require STAGE_TOKEN for audio ingest when configured`.
 
 ## Next step
 T2 (stage client): send `token` query param via `ingestPath()`, persist in localStorage, surface 401/rejection to the operator. A rejected/unauthenticated ingest WS shows the browser client an `error` event (ws emits `unexpected-response` with no listener attached, which falls back to `error`+close) — there is no distinguishable HTTP status visible client-side, so T2 should treat any handshake error on `/ingest/:session` as "check your stage token".
