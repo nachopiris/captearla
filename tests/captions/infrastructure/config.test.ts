@@ -7,7 +7,7 @@ describe("loadConfig", () => {
 
     expect(config.port).toBe(3000);
     expect(config.transcriber).toBe("mock");
-    expect(config.geminiModel).toBe("gemini-2.5-flash");
+    expect(config.geminiModel).toBe("gemini-3.5-flash-lite");
     expect(config.sessions).toEqual(["main-stage", "room-a", "room-b"]);
   });
 

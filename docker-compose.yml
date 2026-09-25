@@ -7,7 +7,7 @@ services:
       - PORT=3000
       - TRANSCRIBER=${TRANSCRIBER:-mock}
       - GEMINI_API_KEY=${GEMINI_API_KEY:-}
-      - GEMINI_MODEL=${GEMINI_MODEL:-gemini-2.5-flash}
+      - GEMINI_MODEL=${GEMINI_MODEL:-gemini-3.5-flash-lite}
       - GEMINI_THINKING_LEVEL=${GEMINI_THINKING_LEVEL:-}
       - SESSIONS=${SESSIONS:-main-stage,room-a,room-b}
     restart: unless-stopped

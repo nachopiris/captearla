@@ -107,14 +107,15 @@ describe("GeminiTranscriber", () => {
     expect(result.text).toBe("");
   });
 
-  it("defaults the model to gemini-2.5-flash when none is provided", async () => {
+  it("defaults the model to gemini-3.5-flash-lite when none is provided", async () => {
     const client = stubClient(JSON.stringify({ text: "x", lang: "en", es: "x", en: "x" }));
     const transcriber = new GeminiTranscriber({ client });
 
     await transcriber.transcribe(chunk);
 
     const call = (client.models.generateContent as ReturnType<typeof vi.fn>).mock.calls[0][0];
-    expect(call.model).toBe("gemini-2.5-flash");
+    expect(call.model).toBe("gemini-3.5-flash-lite");
+    expect(call.config.thinkingConfig).toEqual({ thinkingLevel: "minimal" });
   });
 });
 
