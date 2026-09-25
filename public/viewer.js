@@ -10,15 +10,25 @@
 import { createCaptionBuffer, createCaptionConnection, createProjectorMode } from "./viewer-core.js";
 
 const MAX_VISIBLE_LINES = 4;
+const LANG_NAMES = { original: "Original", es: "Español", en: "English" };
+const LANG_CODES = { original: "ORIGINAL", es: "ES", en: "EN" };
+const SESSION_STORAGE_KEY = "captearla.viewer.session";
+const LANG_STORAGE_KEY = "captearla.viewer.lang";
 
 const sessionSelect = document.getElementById("sessionSelect");
-const langSelect = document.getElementById("langSelect");
+const langSegmented = document.getElementById("langSegmented");
+const langButtons = Array.from(langSegmented.querySelectorAll("button[data-lang]"));
 const statusBadge = document.getElementById("statusBadge");
+const statusLabel = document.getElementById("statusLabel");
 const projectorButton = document.getElementById("projectorButton");
 const projectorExitButton = document.getElementById("projectorExitButton");
 const captionsEl = document.getElementById("captions");
+const captionMetaEl = document.getElementById("captionMeta");
+const projectorMetaEl = document.getElementById("projectorMeta");
 
 let currentSession = null;
+let currentLang = "original";
+let sessionsById = new Map();
 const buffer = createCaptionBuffer(MAX_VISIBLE_LINES);
 
 function readStorage(key) {
@@ -50,7 +60,7 @@ function updateUrl(sessionId, lang) {
 
 function renderLines() {
   captionsEl.innerHTML = "";
-  for (const line of buffer.lines(langSelect.value)) {
+  for (const line of buffer.lines(currentLang)) {
     const div = document.createElement("div");
     div.className = "caption-line";
     div.textContent = line;
@@ -58,9 +68,31 @@ function renderLines() {
   }
 }
 
+function sessionName() {
+  const session = sessionsById.get(currentSession);
+  return session ? session.name : (currentSession ?? "");
+}
+
+function updateMetaLine() {
+  const parts = [sessionName(), LANG_NAMES[currentLang] ?? currentLang];
+  if (currentLang !== "original") parts.push("Machine translated");
+  captionMetaEl.textContent = parts.filter(Boolean).join(" · ");
+
+  projectorMetaEl.textContent = [sessionName(), LANG_CODES[currentLang] ?? currentLang]
+    .filter(Boolean)
+    .join(" · ")
+    .toUpperCase();
+}
+
 function setStatus(text, isLive) {
-  statusBadge.textContent = text;
   statusBadge.classList.toggle("live", Boolean(isLive));
+  if (isLive) {
+    statusLabel.textContent = "Live";
+  } else if (text === "reconnecting…") {
+    statusLabel.textContent = "Reconnecting…";
+  } else {
+    statusLabel.textContent = "Connecting…";
+  }
 }
 
 function wsUrl(path) {
@@ -79,11 +111,28 @@ const connection = createCaptionConnection({
 function selectSession(sessionId) {
   if (sessionId === currentSession) return;
   currentSession = sessionId;
-  writeStorage("captearla.viewer.session", sessionId);
-  updateUrl(sessionId, langSelect.value);
+  writeStorage(SESSION_STORAGE_KEY, sessionId);
+  updateUrl(sessionId, currentLang);
   buffer.reset();
   renderLines();
+  updateMetaLine();
   connection.connect(sessionId);
+}
+
+function applyLangUI() {
+  for (const button of langButtons) {
+    button.setAttribute("aria-pressed", String(button.dataset.lang === currentLang));
+  }
+}
+
+function selectLang(lang) {
+  if (lang === currentLang) return;
+  currentLang = lang;
+  applyLangUI();
+  writeStorage(LANG_STORAGE_KEY, currentLang);
+  if (currentSession) updateUrl(currentSession, currentLang);
+  renderLines();
+  updateMetaLine();
 }
 
 async function refreshSessions() {
@@ -94,6 +143,8 @@ async function refreshSessions() {
   } catch {
     return;
   }
+
+  sessionsById = new Map(sessions.map((session) => [session.id, session]));
 
   const previouslySelected = sessionSelect.value;
   sessionSelect.innerHTML = "";
@@ -107,7 +158,7 @@ async function refreshSessions() {
   if (sessions.length === 0) return;
 
   const stillExists = sessions.some((s) => s.id === previouslySelected);
-  const wanted = paramsFromUrl().get("session") ?? readStorage("captearla.viewer.session");
+  const wanted = paramsFromUrl().get("session") ?? readStorage(SESSION_STORAGE_KEY);
   const wantedExists = sessions.some((s) => s.id === wanted);
 
   if (!currentSession) {
@@ -116,17 +167,18 @@ async function refreshSessions() {
   } else if (stillExists) {
     sessionSelect.value = previouslySelected;
   }
+
+  updateMetaLine();
 }
 
-langSelect.value = paramsFromUrl().get("lang") ?? readStorage("captearla.viewer.lang") ?? "original";
+currentLang = paramsFromUrl().get("lang") ?? readStorage(LANG_STORAGE_KEY) ?? "original";
+applyLangUI();
 
 sessionSelect.addEventListener("change", () => selectSession(sessionSelect.value));
 
-langSelect.addEventListener("change", () => {
-  writeStorage("captearla.viewer.lang", langSelect.value);
-  if (currentSession) updateUrl(currentSession, langSelect.value);
-  renderLines();
-});
+for (const button of langButtons) {
+  button.addEventListener("click", () => selectLang(button.dataset.lang));
+}
 
 const projector = createProjectorMode({
   onChange: (active) => document.body.classList.toggle("projector", active),
