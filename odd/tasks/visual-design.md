@@ -99,7 +99,12 @@ Branch: `feat/live-captions-prototype` (existing feature branch).
 
 - T2 fix: viewer header labels (Session, Language) rendered above their controls because the
   shared `.field` is a column; `.topbar-controls .field` is now a row on desktop and stays a
-  column at <=640px, per the canvas (route: inline, one mechanical CSS rule).
+  column at <=640px, per the canvas (route: inline, one mechanical CSS rule). Commit: 7728764.
+- T2 fix: header controls aligned to flex-end left the 44px session select 4px lower than the
+  52px language group; `.topbar-controls` now centers them. Commit: dd0c5b6.
+- T3 fix: `.stage-grid` used `align-items: start`, so the live preview only grew to its content;
+  the grid now stretches rows and only `.stage-left` keeps `align-self: start`. Commit: 42988cb.
+- Delivery: pushed to `origin/feat/live-captions-prototype` on user request.
 
 ## Verification
 - `npm test`: 13 files / 74 tests passed (10 new in `tests/stage/stage-core.test.ts`, all
