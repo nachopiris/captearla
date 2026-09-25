@@ -2,7 +2,8 @@ import { describe, expect, test } from "vitest";
 import {
   createCaptionBuffer,
   createCaptionConnection,
-  createProjectorMode
+  createProjectorMode,
+  visibleSessions
 } from "../../public/viewer-core.js";
 
 /** Minimal fake WebSocket: records listeners, lets tests fire events by hand. */
@@ -272,5 +273,34 @@ describe("createProjectorMode", () => {
     projector.toggle();
     projector.exit();
     expect(changes).toEqual([true, false]);
+  });
+});
+
+describe("visibleSessions", () => {
+  const rooms = [
+    { id: "main-stage", name: "Main Stage", live: true },
+    { id: "room-a", name: "Room A", live: false },
+    { id: "room-b", name: "Room B", live: true }
+  ];
+
+  test("keeps only live sessions, preserving input order", () => {
+    expect(visibleSessions(rooms, null)).toEqual([rooms[0], rooms[2]]);
+  });
+
+  test("also keeps the offline session matching keepId, in its original position", () => {
+    expect(visibleSessions(rooms, "room-a")).toEqual([rooms[0], rooms[1], rooms[2]]);
+  });
+
+  test("does not duplicate a keepId that is already live", () => {
+    expect(visibleSessions(rooms, "main-stage")).toEqual([rooms[0], rooms[2]]);
+  });
+
+  test("a keepId matching no session has no effect: only live sessions show", () => {
+    expect(visibleSessions(rooms, "nonexistent")).toEqual([rooms[0], rooms[2]]);
+  });
+
+  test("no live sessions and no keepId returns an empty list", () => {
+    const offlineOnly = [{ id: "room-a", name: "Room A", live: false }];
+    expect(visibleSessions(offlineOnly, null)).toEqual([]);
   });
 });

@@ -107,6 +107,7 @@ async function loadKnownSessions() {
     for (const session of sessions) {
       const option = document.createElement("option");
       option.value = session.id;
+      if (session.name && session.name !== session.id) option.label = session.name;
       knownSessions.appendChild(option);
     }
   } catch {

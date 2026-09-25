@@ -7,7 +7,12 @@
 // socket, and a reconnect after a genuine drop replays history into the
 // buffer's dedupe instead of visibly blanking/reflowing the screen.
 
-import { createCaptionBuffer, createCaptionConnection, createProjectorMode } from "./viewer-core.js";
+import {
+  createCaptionBuffer,
+  createCaptionConnection,
+  createProjectorMode,
+  visibleSessions
+} from "./viewer-core.js";
 
 const MAX_VISIBLE_LINES = 4;
 const LANG_NAMES = { original: "Original", es: "Español", en: "English" };
@@ -146,26 +151,41 @@ async function refreshSessions() {
 
   sessionsById = new Map(sessions.map((session) => [session.id, session]));
 
-  const previouslySelected = sessionSelect.value;
+  const wanted = paramsFromUrl().get("session") ?? readStorage(SESSION_STORAGE_KEY);
+  const wantedExists = sessions.some((s) => s.id === wanted);
+  // Once a session is selected, keep offering it (even if it just went
+  // offline) so an audience member isn't dropped when the speaker pauses.
+  // Before that, only a session the viewer actually asked for earns a slot
+  // among the offline ones.
+  const keepId = currentSession ?? (wantedExists ? wanted : null);
+  const visible = visibleSessions(sessions, keepId);
+
   sessionSelect.innerHTML = "";
-  for (const session of sessions) {
+
+  if (visible.length === 0) {
+    const placeholder = document.createElement("option");
+    placeholder.textContent = "No live sessions";
+    placeholder.disabled = true;
+    placeholder.selected = true;
+    sessionSelect.appendChild(placeholder);
+    updateMetaLine();
+    return;
+  }
+
+  for (const session of visible) {
     const option = document.createElement("option");
     option.value = session.id;
-    option.textContent = session.live ? `${session.name} (live)` : session.name;
+    option.textContent =
+      session.id === keepId && !session.live ? `${session.name} (offline)` : session.name;
     sessionSelect.appendChild(option);
   }
 
-  if (sessions.length === 0) return;
-
-  const stillExists = sessions.some((s) => s.id === previouslySelected);
-  const wanted = paramsFromUrl().get("session") ?? readStorage(SESSION_STORAGE_KEY);
-  const wantedExists = sessions.some((s) => s.id === wanted);
-
   if (!currentSession) {
-    sessionSelect.value = wantedExists ? wanted : sessions[0].id;
-    selectSession(sessionSelect.value);
-  } else if (stillExists) {
-    sessionSelect.value = previouslySelected;
+    const initial = wantedExists ? wanted : visible[0].id;
+    sessionSelect.value = initial;
+    selectSession(initial);
+  } else if (visible.some((s) => s.id === currentSession)) {
+    sessionSelect.value = currentSession;
   }
 
   updateMetaLine();
