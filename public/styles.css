@@ -1,0 +1,794 @@
+/* ==========================================================================
+   Tokens — "broadcast" dark theme
+   ========================================================================== */
+:root {
+  --bg: #111110;
+  --surface: #1a1917;
+  --surface-2: #242320;
+  --line: #2a2826;
+  --border: #2e2c2a;
+  --text: #f2efe9;
+  --text-2: #c9c4bc;
+  --muted: #a29d95;
+  --faint: #7d7870;
+  --accent: #e9b44c;
+  --on-accent: #1a1406;
+  --live: #ff5a4e;
+  --live-text: #ff8177;
+  --live-bg: #2a1413;
+  --projector-bg: #0a0a09;
+  --projector-dim: #8a847c;
+  --danger-text: #1f0606;
+
+  --font-ui: "Atkinson Hyperlegible Next", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+}
+
+/* ==========================================================================
+   Base
+   ========================================================================== */
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-ui);
+}
+
+a {
+  color: var(--accent);
+}
+
+svg {
+  display: block;
+}
+
+/* ==========================================================================
+   Typography helpers
+   ========================================================================== */
+.mono-label {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* ==========================================================================
+   Brand mark
+   ========================================================================== */
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text);
+  text-decoration: none;
+}
+
+.brand-icon {
+  flex: none;
+  color: var(--accent);
+}
+
+.brand-name {
+  font-family: var(--font-ui);
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.divider {
+  flex: none;
+  width: 1px;
+  height: 32px;
+  background: var(--line);
+}
+
+/* ==========================================================================
+   Form fields
+   ========================================================================== */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.select-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.select-wrap select {
+  appearance: none;
+  -webkit-appearance: none;
+  height: 44px;
+  min-width: 240px;
+  padding: 0 40px 0 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.select-wrap select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.select-wrap .select-chevron {
+  position: absolute;
+  top: 50%;
+  right: 14px;
+  transform: translateY(-50%);
+  color: var(--muted);
+  pointer-events: none;
+}
+
+input {
+  font-family: var(--font-ui);
+  color: var(--text);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* ==========================================================================
+   Segmented control
+   ========================================================================== */
+.segmented {
+  display: flex;
+  gap: 4px;
+  padding: 3px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.segmented button {
+  height: 44px;
+  padding: 0 16px;
+  border: none;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--text-2);
+  font-family: var(--font-ui);
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.segmented button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.segmented button[aria-pressed="true"] {
+  background: var(--accent);
+  color: var(--on-accent);
+  font-weight: 700;
+}
+
+/* ==========================================================================
+   Badges
+   ========================================================================== */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.badge-dot {
+  display: none;
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.badge.live {
+  background: var(--live-bg);
+  border-color: transparent;
+  color: var(--live-text);
+}
+
+.badge.live .badge-dot {
+  display: inline-block;
+  background: var(--live);
+}
+
+/* ==========================================================================
+   Buttons
+   ========================================================================== */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 44px;
+  padding: 0 16px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--text-2);
+  font-family: var(--font-ui);
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.btn:hover {
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+.btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-icon-only {
+  width: 44px;
+  padding: 0;
+}
+
+.btn-primary {
+  height: 52px;
+  border: 1px solid var(--accent);
+  border-radius: 10px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-weight: 700;
+}
+
+.btn-primary:hover {
+  border-color: var(--accent);
+  color: var(--on-accent);
+  filter: brightness(1.05);
+}
+
+.btn-primary:disabled {
+  background: var(--surface-2);
+  border-color: var(--border);
+  color: var(--faint);
+  opacity: 1;
+}
+
+.btn-danger {
+  height: 52px;
+  border: 1px solid var(--live);
+  border-radius: 10px;
+  background: var(--live);
+  color: var(--danger-text);
+  font-weight: 700;
+}
+
+.btn-danger:hover {
+  border-color: var(--live);
+  color: var(--danger-text);
+  filter: brightness(1.05);
+}
+
+.btn-danger:disabled {
+  background: var(--surface-2);
+  border-color: var(--border);
+  color: var(--faint);
+  opacity: 1;
+}
+
+.btn-copy {
+  height: 38px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-2);
+  color: var(--text-2);
+  font-family: var(--font-ui);
+  font-size: 13px;
+}
+
+.btn-copy:hover {
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+/* ==========================================================================
+   Panels
+   ========================================================================== */
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 24px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+}
+
+.panel h2 {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.panel .hint {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* ==========================================================================
+   Footer
+   ========================================================================== */
+.site-footer {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  height: 48px;
+  padding: 0 160px;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+/* ==========================================================================
+   Viewer — topbar
+   ========================================================================== */
+.topbar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  height: 80px;
+  padding: 0 32px;
+  border-bottom: 1px solid var(--line);
+}
+
+.topbar-brand-group {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  order: 1;
+}
+
+.topbar-controls {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  order: 2;
+}
+
+.topbar-spacer {
+  flex: 1;
+  order: 3;
+}
+
+#statusBadge {
+  order: 4;
+}
+
+#projectorButton {
+  order: 5;
+}
+
+/* ==========================================================================
+   Viewer — projector faint top row (hidden outside projector mode)
+   ========================================================================== */
+.projector-bar {
+  display: none;
+}
+
+.projector .projector-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 24px 40px 0;
+  color: var(--projector-dim);
+  opacity: 0.55;
+  transition: opacity 120ms ease;
+}
+
+.projector .projector-bar:hover,
+.projector .projector-bar:focus-within {
+  opacity: 1;
+}
+
+.projector-bar-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--projector-dim);
+}
+
+.projector-bar-left .brand-icon {
+  color: var(--projector-dim);
+}
+
+.projector-bar-meta {
+  color: var(--projector-dim);
+}
+
+.projector-exit-btn {
+  height: 44px;
+  padding: 0 16px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--projector-dim);
+  font-family: var(--font-ui);
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.projector-exit-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.projector .topbar {
+  display: none;
+}
+
+/* ==========================================================================
+   Viewer — main + captions
+   ========================================================================== */
+.viewer-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 40px 160px 72px;
+}
+
+.caption-meta {
+  margin: 0;
+}
+
+.captions {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  max-width: 1080px;
+}
+
+.caption-line {
+  color: var(--faint);
+  font-size: 30px;
+  line-height: 1.4;
+}
+
+.caption-line:nth-last-child(2) {
+  color: var(--muted);
+}
+
+.caption-line:last-child {
+  color: var(--text);
+  font-size: 56px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.projector {
+  background: var(--projector-bg);
+}
+
+.projector .site-footer {
+  display: none;
+}
+
+.projector .caption-meta {
+  display: none;
+}
+
+.projector .viewer-main {
+  padding: 40px 120px 96px;
+}
+
+.projector .caption-line {
+  font-size: 38px;
+  color: var(--faint);
+}
+
+.projector .caption-line:last-child {
+  font-size: 72px;
+  letter-spacing: -0.015em;
+  color: var(--text);
+}
+
+.projector .caption-line:not(:nth-last-child(-n + 2)) {
+  display: none;
+}
+
+/* ==========================================================================
+   Viewer — phone (<=640px)
+   ========================================================================== */
+.topbar-controls .field {
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+}
+
+@media (max-width: 640px) {
+  .topbar-controls .field {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+  }
+
+  .topbar {
+    height: auto;
+    flex-wrap: wrap;
+    padding: 0;
+    row-gap: 0;
+  }
+
+  .topbar-brand-group {
+    height: 64px;
+    padding: 0 16px;
+    flex: 1 1 auto;
+  }
+
+  .topbar-controls {
+    order: 6;
+    flex: 1 1 100%;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    padding: 16px;
+  }
+
+  .topbar-controls .select-wrap select {
+    width: 100%;
+    height: 48px;
+  }
+
+  .topbar-controls #langSegmented {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .topbar-spacer {
+    display: none;
+  }
+
+  #statusBadge {
+    order: 4;
+    margin-right: 8px;
+  }
+
+  #projectorButton {
+    order: 5;
+    margin-right: 16px;
+  }
+
+  #projectorButton .btn-label {
+    display: none;
+  }
+
+  #projectorButton {
+    width: 44px;
+    padding: 0;
+  }
+
+  .viewer-main {
+    padding: 24px 20px;
+  }
+
+  .caption-line {
+    font-size: 20px;
+  }
+
+  .caption-line:last-child {
+    font-size: 30px;
+  }
+
+  .site-footer {
+    height: auto;
+    min-height: 48px;
+    padding: 12px 16px;
+    font-size: 11px;
+  }
+
+  .footer-secondary {
+    display: none;
+  }
+}
+
+/* ==========================================================================
+   Stage — topbar tag
+   ========================================================================== */
+.stage-tag {
+  display: inline-flex;
+  align-items: center;
+  height: 26px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+/* ==========================================================================
+   Stage — layout
+   ========================================================================== */
+.stage-grid {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 460px minmax(0, 1fr);
+  gap: 24px;
+  padding: 32px;
+}
+
+.stage-left {
+  align-self: start;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* ==========================================================================
+   Stage — session panel
+   ========================================================================== */
+#sessionInput {
+  height: 48px;
+  padding: 0 14px;
+  font-family: var(--font-mono);
+  font-size: 16px;
+}
+
+.audience-link-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 48px;
+  padding: 0 8px 0 14px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.audience-link {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--text-2);
+}
+
+.btn-copy {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ==========================================================================
+   Stage — microphone panel
+   ========================================================================== */
+.mic-buttons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.mic-buttons button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.level-meter {
+  display: grid;
+  grid-template-columns: repeat(28, 1fr);
+  gap: 3px;
+}
+
+.level-meter-segment {
+  height: 20px;
+  border-radius: 2px;
+  background: transparent;
+  border: 1px solid var(--border);
+}
+
+.level-meter-segment.lit {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.level-meter-segment.lit.hot {
+  background: var(--live);
+  border-color: var(--live);
+}
+
+/* ==========================================================================
+   Stage — live preview panel
+   ========================================================================== */
+.stage-preview {
+  min-height: 420px;
+}
+
+.stage-preview-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.stage-captions {
+  flex: 1;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.stage-captions .caption-line {
+  font-size: 22px;
+  line-height: 1.4;
+}
+
+.stage-captions .caption-line:nth-last-child(2) {
+  color: var(--muted);
+}
+
+.stage-captions .caption-line:last-child {
+  font-size: 36px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.stage-captions-placeholder {
+  margin: 0;
+  color: var(--muted);
+}
+
+/* ==========================================================================
+   Stage — single column (<=900px)
+   ========================================================================== */
+@media (max-width: 900px) {
+  .stage-grid {
+    grid-template-columns: 1fr;
+  }
+}
