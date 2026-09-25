@@ -12,13 +12,22 @@ export function audienceUrl(origin, sessionId) {
 
 /**
  * Builds the ingest WebSocket path for a session, optionally carrying a
- * display name as a `?name=` query param. A blank or missing name omits
- * the query param entirely, so the server keeps the session's current name.
+ * display name as a `?name=` query param and a stage token as a `?token=`
+ * query param. A blank or missing name omits the name param entirely, so
+ * the server keeps the session's current name. A blank or missing token
+ * omits the token param entirely (the server only requires it when
+ * STAGE_TOKEN is configured).
  */
-export function ingestPath(sessionId, name) {
+export function ingestPath(sessionId, name, token) {
   const trimmedName = typeof name === "string" ? name.trim() : "";
+  const trimmedToken = typeof token === "string" ? token.trim() : "";
+
+  const params = [];
+  if (trimmedName) params.push(`name=${encodeURIComponent(trimmedName)}`);
+  if (trimmedToken) params.push(`token=${encodeURIComponent(trimmedToken)}`);
+
   const base = `/ingest/${encodeURIComponent(sessionId)}`;
-  return trimmedName ? `${base}?name=${encodeURIComponent(trimmedName)}` : base;
+  return params.length ? `${base}?${params.join("&")}` : base;
 }
 
 /**

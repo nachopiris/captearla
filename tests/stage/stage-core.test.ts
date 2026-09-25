@@ -36,6 +36,29 @@ describe("ingestPath", () => {
   test("URL-encodes a session id with special characters", () => {
     expect(ingestPath("room one/2")).toBe("/ingest/room%20one%2F2");
   });
+
+  test("omits the token query param when no token is given", () => {
+    expect(ingestPath("main-stage", "")).toBe("/ingest/main-stage");
+  });
+
+  test("omits the token query param when the token is blank or whitespace-only", () => {
+    expect(ingestPath("main-stage", "", "")).toBe("/ingest/main-stage");
+    expect(ingestPath("main-stage", "", "   ")).toBe("/ingest/main-stage");
+  });
+
+  test("appends a URL-encoded token query param when given", () => {
+    expect(ingestPath("main-stage", "", "s3cr3t")).toBe("/ingest/main-stage?token=s3cr3t");
+  });
+
+  test("URL-encodes a token with special characters", () => {
+    expect(ingestPath("main-stage", "", "a b&c=d")).toBe("/ingest/main-stage?token=a%20b%26c%3Dd");
+  });
+
+  test("combines name and token query params when both are given", () => {
+    expect(ingestPath("room-a", "Sala A", "s3cr3t")).toBe(
+      "/ingest/room-a?name=Sala%20A&token=s3cr3t"
+    );
+  });
 });
 
 describe("meterSegments", () => {
