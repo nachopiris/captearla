@@ -75,6 +75,68 @@ describe("AudioChunker", () => {
     expect(result).toBeNull();
   });
 
+  it("checks trailing silence across frame boundaries with many small frames", () => {
+    const chunker = new AudioChunker({
+      sampleRate: SAMPLE_RATE,
+      minDurationMs: 2500,
+      maxDurationMs: 6000,
+      trailingSilenceMs: 400,
+      silenceRmsThreshold: 500
+    });
+    const frames: Int16Array[] = [];
+    const push = (frame: Int16Array) => {
+      frames.push(frame);
+      return chunker.push(frame);
+    };
+
+    // 2.6s of speech in 100ms frames, the way the WebSocket ingest delivers audio.
+    for (let i = 0; i < 26; i++) {
+      expect(push(toneFrame(samplesFor(100)))).toBeNull();
+    }
+    // 300ms of silence: the 400ms window still reaches 100ms into the speech.
+    expect(push(silenceFrame(samplesFor(150)))).toBeNull();
+    expect(push(silenceFrame(samplesFor(150)))).toBeNull();
+    // 450ms of silence: the window now spans only part of the first silence frame.
+    const result = push(silenceFrame(samplesFor(150)));
+
+    const expected = new Int16Array(frames.reduce((sum, frame) => sum + frame.length, 0));
+    let offset = 0;
+    for (const frame of frames) {
+      expected.set(frame, offset);
+      offset += frame.length;
+    }
+    expect(result).toEqual(expected);
+  });
+
+  it("reads trailing silence from the end of a frame that mixes speech and silence", () => {
+    const options = {
+      sampleRate: SAMPLE_RATE,
+      minDurationMs: 2500,
+      maxDurationMs: 6000,
+      trailingSilenceMs: 400,
+      silenceRmsThreshold: 500
+    };
+    const concat = (...parts: Int16Array[]) => {
+      const out = new Int16Array(parts.reduce((sum, part) => sum + part.length, 0));
+      let offset = 0;
+      for (const part of parts) {
+        out.set(part, offset);
+        offset += part.length;
+      }
+      return out;
+    };
+
+    // Speech then silence inside one frame: only the trailing 400ms is silent.
+    const endsSilent = new AudioChunker(options);
+    expect(endsSilent.push(toneFrame(samplesFor(2600)))).toBeNull();
+    expect(endsSilent.push(concat(toneFrame(samplesFor(300)), silenceFrame(samplesFor(400))))).not.toBeNull();
+
+    // Silence then speech inside one frame: the trailing 400ms is not silent.
+    const endsSpeaking = new AudioChunker(options);
+    expect(endsSpeaking.push(toneFrame(samplesFor(2600)))).toBeNull();
+    expect(endsSpeaking.push(concat(silenceFrame(samplesFor(400)), toneFrame(samplesFor(300))))).toBeNull();
+  });
+
   it("resets its buffer after flushing so the next chunk starts empty", () => {
     const chunker = new AudioChunker({
       sampleRate: SAMPLE_RATE,
