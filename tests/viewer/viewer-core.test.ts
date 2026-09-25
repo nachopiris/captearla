@@ -1,5 +1,6 @@
 import { describe, expect, test } from "vitest";
 import {
+  badgeState,
   createCaptionBuffer,
   createCaptionConnection,
   createProjectorMode,
@@ -273,6 +274,47 @@ describe("createProjectorMode", () => {
     projector.toggle();
     projector.exit();
     expect(changes).toEqual([true, false]);
+  });
+});
+
+describe("badgeState", () => {
+  test("no session selected shows Offline regardless of connection", () => {
+    expect(badgeState({ connection: "none", sessionLive: false })).toEqual({
+      label: "Offline",
+      live: false
+    });
+    expect(badgeState({ connection: "none", sessionLive: true })).toEqual({
+      label: "Offline",
+      live: false
+    });
+  });
+
+  test("connecting shows Connecting… and is not live", () => {
+    expect(badgeState({ connection: "connecting", sessionLive: false })).toEqual({
+      label: "Connecting…",
+      live: false
+    });
+  });
+
+  test("reconnecting shows Reconnecting… and is not live", () => {
+    expect(badgeState({ connection: "reconnecting", sessionLive: true })).toEqual({
+      label: "Reconnecting…",
+      live: false
+    });
+  });
+
+  test("connected and the session is live shows Live", () => {
+    expect(badgeState({ connection: "connected", sessionLive: true })).toEqual({
+      label: "Live",
+      live: true
+    });
+  });
+
+  test("connected but the session is not live (speaker stopped) shows Offline, not Live", () => {
+    expect(badgeState({ connection: "connected", sessionLive: false })).toEqual({
+      label: "Offline",
+      live: false
+    });
   });
 });
 

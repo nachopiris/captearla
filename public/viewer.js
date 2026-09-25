@@ -8,6 +8,7 @@
 // buffer's dedupe instead of visibly blanking/reflowing the screen.
 
 import {
+  badgeState,
   createCaptionBuffer,
   createCaptionConnection,
   createProjectorMode,
@@ -34,6 +35,11 @@ const projectorMetaEl = document.getElementById("projectorMeta");
 let currentSession = null;
 let currentLang = "original";
 let sessionsById = new Map();
+// Last WebSocket connection state ("connecting" | "reconnecting" | "connected"
+// | "none"), tracked separately from whether the selected session is live:
+// a connected socket doesn't mean the session is live (speaker stopped or
+// never started), so the badge needs both to decide Live vs. Offline.
+let connectionState = "none";
 const buffer = createCaptionBuffer(MAX_VISIBLE_LINES);
 
 function readStorage(key) {
@@ -89,15 +95,21 @@ function updateMetaLine() {
     .toUpperCase();
 }
 
+function renderBadge() {
+  const session = sessionsById.get(currentSession);
+  const { label, live } = badgeState({
+    // No selected (or no longer registered) session reads as Offline without
+    // overwriting the socket's own state, which a later poll may still need.
+    connection: session ? connectionState : "none",
+    sessionLive: Boolean(session?.live)
+  });
+  statusBadge.classList.toggle("live", live);
+  statusLabel.textContent = label;
+}
+
 function setStatus(text, isLive) {
-  statusBadge.classList.toggle("live", Boolean(isLive));
-  if (isLive) {
-    statusLabel.textContent = "Live";
-  } else if (text === "reconnecting…") {
-    statusLabel.textContent = "Reconnecting…";
-  } else {
-    statusLabel.textContent = "Connecting…";
-  }
+  connectionState = isLive ? "connected" : text === "reconnecting…" ? "reconnecting" : "connecting";
+  renderBadge();
 }
 
 function wsUrl(path) {
@@ -169,6 +181,7 @@ async function refreshSessions() {
     placeholder.selected = true;
     sessionSelect.appendChild(placeholder);
     updateMetaLine();
+    renderBadge();
     return;
   }
 
@@ -189,6 +202,7 @@ async function refreshSessions() {
   }
 
   updateMetaLine();
+  renderBadge();
 }
 
 currentLang = paramsFromUrl().get("lang") ?? readStorage(LANG_STORAGE_KEY) ?? "original";

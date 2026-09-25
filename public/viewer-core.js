@@ -141,6 +141,24 @@ export function createCaptionConnection({
 }
 
 /**
+ * Derives the status pill's label and live flag from the WebSocket
+ * connection state and whether the selected session is actually live.
+ *
+ * A connected socket alone doesn't mean the session is live: the speaker may
+ * have stopped or never started, in which case the pill must read Offline
+ * rather than Live even though the caption WebSocket is open.
+ *
+ * @param {{ connection: "connecting" | "reconnecting" | "connected" | "none", sessionLive: boolean }} state
+ * @returns {{ label: string, live: boolean }}
+ */
+export function badgeState({ connection, sessionLive }) {
+  if (connection === "connecting") return { label: "Connecting…", live: false };
+  if (connection === "reconnecting") return { label: "Reconnecting…", live: false };
+  if (connection === "connected" && sessionLive) return { label: "Live", live: true };
+  return { label: "Offline", live: false };
+}
+
+/**
  * Which sessions the audience picker should offer: live ones only, plus the
  * currently kept session even when it just went offline (e.g. the speaker
  * paused) so a viewer already on that link or selection isn't kicked out.
