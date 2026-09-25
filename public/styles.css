@@ -623,3 +623,160 @@ input:focus-visible {
     display: none;
   }
 }
+
+/* ==========================================================================
+   Stage — topbar tag
+   ========================================================================== */
+.stage-tag {
+  display: inline-flex;
+  align-items: center;
+  height: 26px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+/* ==========================================================================
+   Stage — layout
+   ========================================================================== */
+.stage-grid {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 460px minmax(0, 1fr);
+  gap: 24px;
+  padding: 32px;
+  align-items: start;
+}
+
+.stage-left {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* ==========================================================================
+   Stage — session panel
+   ========================================================================== */
+#sessionInput {
+  height: 48px;
+  padding: 0 14px;
+  font-family: var(--font-mono);
+  font-size: 16px;
+}
+
+.audience-link-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 48px;
+  padding: 0 8px 0 14px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.audience-link {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--text-2);
+}
+
+.btn-copy {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ==========================================================================
+   Stage — microphone panel
+   ========================================================================== */
+.mic-buttons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.mic-buttons button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.level-meter {
+  display: grid;
+  grid-template-columns: repeat(28, 1fr);
+  gap: 3px;
+}
+
+.level-meter-segment {
+  height: 20px;
+  border-radius: 2px;
+  background: transparent;
+  border: 1px solid var(--border);
+}
+
+.level-meter-segment.lit {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.level-meter-segment.lit.hot {
+  background: var(--live);
+  border-color: var(--live);
+}
+
+/* ==========================================================================
+   Stage — live preview panel
+   ========================================================================== */
+.stage-preview {
+  min-height: 420px;
+}
+
+.stage-preview-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.stage-captions {
+  flex: 1;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.stage-captions .caption-line {
+  font-size: 22px;
+  line-height: 1.4;
+}
+
+.stage-captions .caption-line:nth-last-child(2) {
+  color: var(--muted);
+}
+
+.stage-captions .caption-line:last-child {
+  font-size: 36px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.stage-captions-placeholder {
+  margin: 0;
+  color: var(--muted);
+}
+
+/* ==========================================================================
+   Stage — single column (<=900px)
+   ========================================================================== */
+@media (max-width: 900px) {
+  .stage-grid {
+    grid-template-columns: 1fr;
+  }
+}

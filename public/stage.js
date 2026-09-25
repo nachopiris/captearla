@@ -3,13 +3,24 @@
 // /ingest/:session. Also shows a level meter and a live caption preview
 // by subscribing to /captions/:session.
 
+import { createCaptionBuffer } from "./viewer-core.js";
+import { audienceUrl, meterSegments } from "./stage-core.js";
+
+const METER_SEGMENT_COUNT = 28;
+const METER_HOT_FROM = 24;
+const PREVIEW_LINES = 3;
+
 const sessionInput = document.getElementById("sessionInput");
 const knownSessions = document.getElementById("knownSessions");
 const startButton = document.getElementById("startButton");
 const stopButton = document.getElementById("stopButton");
 const statusBadge = document.getElementById("statusBadge");
-const levelFill = document.getElementById("levelFill");
+const statusLabel = document.getElementById("statusLabel");
+const levelMeter = document.getElementById("levelMeter");
 const captionPreview = document.getElementById("captionPreview");
+const audienceLinkEl = document.getElementById("audienceLink");
+const copyLinkButton = document.getElementById("copyLinkButton");
+const copyLinkLabel = document.getElementById("copyLinkLabel");
 
 let audioContext = null;
 let mediaStream = null;
@@ -18,6 +29,18 @@ let analyserNode = null;
 let ingestSocket = null;
 let captionsSocket = null;
 let levelAnimationFrame = null;
+let copyResetTimer = null;
+
+const previewBuffer = createCaptionBuffer(PREVIEW_LINES);
+
+// Build the 28 meter segment elements once; only their classes change.
+const meterSegmentEls = [];
+for (let i = 0; i < METER_SEGMENT_COUNT; i++) {
+  const segment = document.createElement("div");
+  segment.className = "level-meter-segment";
+  levelMeter.appendChild(segment);
+  meterSegmentEls.push(segment);
+}
 
 function readStoredSession() {
   try {
@@ -35,7 +58,28 @@ function storeSession(session) {
   }
 }
 
+function updateAudienceLink() {
+  const sessionId = sessionInput.value.trim();
+  audienceLinkEl.textContent = audienceUrl(location.origin, sessionId);
+}
+
 sessionInput.value = readStoredSession() || "main-stage";
+updateAudienceLink();
+
+sessionInput.addEventListener("input", updateAudienceLink);
+
+copyLinkButton.addEventListener("click", async () => {
+  try {
+    await navigator.clipboard.writeText(audienceLinkEl.textContent ?? "");
+    copyLinkLabel.textContent = "Copied";
+  } catch {
+    return;
+  }
+  clearTimeout(copyResetTimer);
+  copyResetTimer = setTimeout(() => {
+    copyLinkLabel.textContent = "Copy";
+  }, 1500);
+});
 
 async function loadKnownSessions() {
   try {
@@ -53,8 +97,8 @@ async function loadKnownSessions() {
 }
 
 function setStatus(text, isLive) {
-  statusBadge.textContent = text;
   statusBadge.classList.toggle("live", Boolean(isLive));
+  statusLabel.textContent = text;
 }
 
 function wsUrl(path) {
@@ -62,17 +106,45 @@ function wsUrl(path) {
   return `${protocol}//${location.host}${path}`;
 }
 
+function renderPreview() {
+  const lines = previewBuffer.lines("original");
+  if (lines.length === 0) {
+    captionPreview.innerHTML = '<p class="stage-captions-placeholder">No captions yet.</p>';
+    return;
+  }
+  captionPreview.innerHTML = "";
+  for (const line of lines) {
+    const div = document.createElement("div");
+    div.className = "caption-line";
+    div.textContent = line;
+    captionPreview.appendChild(div);
+  }
+}
+
 function connectCaptionsPreview(sessionId) {
   captionsSocket?.close();
+  previewBuffer.reset();
+  renderPreview();
   captionsSocket = new WebSocket(wsUrl(`/captions/${encodeURIComponent(sessionId)}`));
   captionsSocket.addEventListener("message", (event) => {
+    let caption;
     try {
-      const caption = JSON.parse(event.data);
-      captionPreview.textContent = caption.text;
+      caption = JSON.parse(event.data);
     } catch {
-      // Ignore malformed frames.
+      return;
     }
+    if (previewBuffer.add(caption)) renderPreview();
   });
+}
+
+function renderLevelMeter(level) {
+  const segments = meterSegments(level, METER_SEGMENT_COUNT, METER_HOT_FROM);
+  segments.forEach((segment, index) => {
+    const el = meterSegmentEls[index];
+    el.classList.toggle("lit", segment.lit);
+    el.classList.toggle("hot", segment.hot);
+  });
+  levelMeter.setAttribute("aria-valuenow", String(Math.round(Math.min(1, Math.max(0, level)) * 100)));
 }
 
 function updateLevelMeter() {
@@ -85,7 +157,7 @@ function updateLevelMeter() {
     sumSquares += centered * centered;
   }
   const rms = Math.sqrt(sumSquares / data.length);
-  levelFill.style.width = `${Math.min(100, Math.round(rms * 220))}%`;
+  renderLevelMeter(Math.min(1, rms * 2.2));
   levelAnimationFrame = requestAnimationFrame(updateLevelMeter);
 }
 
@@ -121,7 +193,7 @@ async function startMic() {
 
   connectCaptionsPreview(sessionId);
 
-  setStatus("live", true);
+  setStatus("On air", true);
   startButton.disabled = true;
   stopButton.disabled = false;
   sessionInput.disabled = true;
@@ -131,7 +203,7 @@ async function startMic() {
 
 function stopMic() {
   cancelAnimationFrame(levelAnimationFrame);
-  levelFill.style.width = "0%";
+  renderLevelMeter(0);
 
   workletNode?.port?.close?.();
   workletNode?.disconnect?.();
@@ -148,7 +220,7 @@ function stopMic() {
   ingestSocket = null;
   captionsSocket = null;
 
-  setStatus("idle", false);
+  setStatus("Idle", false);
   startButton.disabled = false;
   stopButton.disabled = true;
   sessionInput.disabled = false;
@@ -158,7 +230,7 @@ startButton.addEventListener("click", () => {
   startMic().catch((error) => {
     console.error("Failed to start microphone capture", error);
     alert(`Could not start the microphone: ${error.message}`);
-    setStatus("error", false);
+    setStatus("Error", false);
   });
 });
 
