@@ -98,7 +98,9 @@ function updateMetaLine() {
 function renderBadge() {
   const session = sessionsById.get(currentSession);
   const { label, live } = badgeState({
-    connection: connectionState,
+    // No selected (or no longer registered) session reads as Offline without
+    // overwriting the socket's own state, which a later poll may still need.
+    connection: session ? connectionState : "none",
     sessionLive: Boolean(session?.live)
   });
   statusBadge.classList.toggle("live", live);
@@ -179,7 +181,6 @@ async function refreshSessions() {
     placeholder.selected = true;
     sessionSelect.appendChild(placeholder);
     updateMetaLine();
-    connectionState = "none";
     renderBadge();
     return;
   }
