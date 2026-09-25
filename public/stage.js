@@ -12,6 +12,7 @@ const PREVIEW_LINES = 3;
 
 const sessionInput = document.getElementById("sessionInput");
 const sessionNameInput = document.getElementById("sessionNameInput");
+const stageTokenInput = document.getElementById("stageTokenInput");
 const knownSessions = document.getElementById("knownSessions");
 const startButton = document.getElementById("startButton");
 const stopButton = document.getElementById("stopButton");
@@ -31,6 +32,10 @@ let ingestSocket = null;
 let captionsSocket = null;
 let levelAnimationFrame = null;
 let copyResetTimer = null;
+// Set right before stopMic() closes an ingest socket that never opened, so
+// its "close" listener can tell a deliberate stop apart from a rejected
+// handshake and skip the rejection status message.
+let ingestClosingIntentionally = false;
 
 const previewBuffer = createCaptionBuffer(PREVIEW_LINES);
 
@@ -75,6 +80,22 @@ function storeSessionName(name) {
   }
 }
 
+function readStoredStageToken() {
+  try {
+    return localStorage.getItem("captearla.stage.token") ?? "";
+  } catch {
+    return "";
+  }
+}
+
+function storeStageToken(token) {
+  try {
+    localStorage.setItem("captearla.stage.token", token);
+  } catch {
+    // Ignore storage failures (private mode, disabled storage, etc.).
+  }
+}
+
 function updateAudienceLink() {
   const sessionId = sessionInput.value.trim();
   audienceLinkEl.textContent = audienceUrl(location.origin, sessionId);
@@ -82,6 +103,7 @@ function updateAudienceLink() {
 
 sessionInput.value = readStoredSession() || "main-stage";
 sessionNameInput.value = readStoredSessionName();
+stageTokenInput.value = readStoredStageToken();
 updateAudienceLink();
 
 sessionInput.addEventListener("input", updateAudienceLink);
@@ -188,6 +210,7 @@ async function startMic() {
   }
   storeSession(sessionId);
   storeSessionName(sessionNameInput.value);
+  storeStageToken(stageTokenInput.value);
 
   mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
   audioContext = new AudioContext();
@@ -202,8 +225,29 @@ async function startMic() {
   workletNode = new AudioWorkletNode(audioContext, "pcm-worklet");
   source.connect(workletNode);
 
-  ingestSocket = new WebSocket(wsUrl(ingestPath(sessionId, sessionNameInput.value)));
+  ingestSocket = new WebSocket(
+    wsUrl(ingestPath(sessionId, sessionNameInput.value, stageTokenInput.value))
+  );
   ingestSocket.binaryType = "arraybuffer";
+
+  // The browser exposes no HTTP status for a rejected WebSocket handshake
+  // (e.g. a missing/wrong stage token): it only fires `error` then `close`.
+  // Track whether the socket ever opened so we only treat a `close` that
+  // happens before that as "the handshake was rejected".
+  ingestClosingIntentionally = false;
+  let ingestOpened = false;
+  ingestSocket.addEventListener("open", () => {
+    ingestOpened = true;
+  });
+  ingestSocket.addEventListener("error", () => {
+    if (!ingestOpened) console.error("Ingest connection failed to open (check the stage token)");
+  });
+  ingestSocket.addEventListener("close", () => {
+    if (!ingestOpened && !ingestClosingIntentionally) {
+      stopMic();
+      setStatus("Connection rejected — check the stage token", false);
+    }
+  });
 
   workletNode.port.onmessage = (event) => {
     if (ingestSocket.readyState === WebSocket.OPEN) {
@@ -218,6 +262,7 @@ async function startMic() {
   stopButton.disabled = false;
   sessionInput.disabled = true;
   sessionNameInput.disabled = true;
+  stageTokenInput.disabled = true;
 
   updateLevelMeter();
 }
@@ -231,6 +276,7 @@ function stopMic() {
   analyserNode?.disconnect?.();
   mediaStream?.getTracks().forEach((track) => track.stop());
   audioContext?.close?.();
+  ingestClosingIntentionally = true;
   ingestSocket?.close();
   captionsSocket?.close();
 
@@ -246,6 +292,7 @@ function stopMic() {
   stopButton.disabled = true;
   sessionInput.disabled = false;
   sessionNameInput.disabled = false;
+  stageTokenInput.disabled = false;
 }
 
 startButton.addEventListener("click", () => {

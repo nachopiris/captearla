@@ -107,4 +107,22 @@ describe("loadConfig", () => {
       expect(config.geminiThinkingLevel).toBeUndefined();
     }
   );
+
+  it("leaves stageToken undefined when STAGE_TOKEN is unset", () => {
+    const config = loadConfig({});
+    expect(config.stageToken).toBeUndefined();
+  });
+
+  it("parses a STAGE_TOKEN, trimming surrounding whitespace", () => {
+    const config = loadConfig({ STAGE_TOKEN: "  secret-token  " });
+    expect(config.stageToken).toBe("secret-token");
+  });
+
+  it.each(["", "   "])(
+    "treats a blank STAGE_TOKEN (%s) as unset",
+    (raw) => {
+      const config = loadConfig({ STAGE_TOKEN: raw });
+      expect(config.stageToken).toBeUndefined();
+    }
+  );
 });

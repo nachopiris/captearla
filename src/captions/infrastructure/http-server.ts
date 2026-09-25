@@ -1,5 +1,6 @@
 import { createServer as createHttpServer, type IncomingMessage, type Server } from "node:http";
 import type { Socket } from "node:net";
+import { timingSafeEqual } from "node:crypto";
 import { createReadStream, existsSync, statSync } from "node:fs";
 import { extname, join, normalize, resolve } from "node:path";
 import { WebSocketServer, type RawData, type WebSocket } from "ws";
@@ -12,6 +13,8 @@ export interface HttpServerDeps {
   bus: CaptionBus;
   manager: SessionPipelineManager;
   staticRoot: string;
+  /** Shared secret required on `/ingest/:session` as `?token=`. Unset leaves ingest open. */
+  stageToken?: string;
 }
 
 const MIME_TYPES: Record<string, string> = {
@@ -58,13 +61,25 @@ function serveStatic(staticRoot: string, pathname: string, res: import("node:htt
 const INGEST_PATH = /^\/ingest\/([^/]+)\/?$/;
 const CAPTIONS_PATH = /^\/captions\/([^/]+)\/?$/;
 
+/** Timing-safe check of the `?token=` query param against the configured stage token. */
+function hasValidStageToken(url: URL, stageToken: string): boolean {
+  const provided = url.searchParams.get("token");
+  if (!provided) return false;
+
+  const expected = Buffer.from(stageToken);
+  const actual = Buffer.from(provided);
+  if (expected.length !== actual.length) return false;
+
+  return timingSafeEqual(expected, actual);
+}
+
 /**
  * Wires the plain node:http static/API server together with the two
  * WebSocket endpoints: binary audio ingest per session, and JSON caption
  * fan-out per session.
  */
 export function createServer(deps: HttpServerDeps): Server {
-  const { registry, bus, manager, staticRoot } = deps;
+  const { registry, bus, manager, staticRoot, stageToken } = deps;
 
   const server = createHttpServer((req, res) => {
     const url = new URL(req.url ?? "/", "http://localhost");
@@ -144,6 +159,14 @@ export function createServer(deps: HttpServerDeps): Server {
 
     const ingestMatch = url.pathname.match(INGEST_PATH);
     if (ingestMatch) {
+      // Reject before touching the registry: an unauthenticated attempt must
+      // not create or rename a session, even via ?name=.
+      if (stageToken && !hasValidStageToken(url, stageToken)) {
+        socket.write("HTTP/1.1 401 Unauthorized\r\n\r\n");
+        socket.destroy();
+        return;
+      }
+
       const name = url.searchParams.get("name") ?? undefined;
       ingestWss.handleUpgrade(req, socket, head, (ws) => {
         ingestWss.emit("connection", ws, decodeURIComponent(ingestMatch[1]), name);

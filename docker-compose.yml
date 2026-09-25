@@ -10,4 +10,5 @@ services:
       - GEMINI_MODEL=${GEMINI_MODEL:-gemini-3.5-flash-lite}
       - GEMINI_THINKING_LEVEL=${GEMINI_THINKING_LEVEL:-}
       - SESSIONS=${SESSIONS:-main-stage,room-a,room-b}
+      - STAGE_TOKEN=${STAGE_TOKEN:-}
     restart: unless-stopped

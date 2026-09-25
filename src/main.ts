@@ -59,10 +59,14 @@ async function main(): Promise<void> {
     logger
   });
 
+  if (!config.stageToken) {
+    console.warn("[captearla] STAGE_TOKEN not set — stage ingest is open to anyone with the URL");
+  }
+
   const here = dirname(fileURLToPath(import.meta.url));
   const staticRoot = join(here, "..", "public");
 
-  const server = createServer({ registry, bus, manager, staticRoot });
+  const server = createServer({ registry, bus, manager, staticRoot, stageToken: config.stageToken });
   server.listen(config.port, () => {
     console.log(`[captearla] listening on http://localhost:${config.port}`);
     console.log(`[captearla] sessions: ${registry.list().map((s) => s.id).join(", ")}`);

@@ -113,8 +113,8 @@ or invalid.
 ```bash
 docker compose up --build
 # TRANSCRIBER, GEMINI_API_KEY, GEMINI_MODEL, GEMINI_THINKING_LEVEL, SESSIONS,
-# PORT all pass through from your shell environment or a .env file (see
-# docker-compose.yml).
+# STAGE_TOKEN, PORT all pass through from your shell environment or a .env
+# file (see docker-compose.yml).
 ```
 
 ## Running a real conference
@@ -140,6 +140,29 @@ docker compose up --build
   (`/ingest/:session?name=...`), trimmed and capped at 80 characters
   server-side, and the last non-empty name sent wins.
 
+## Protecting audio ingest (STAGE_TOKEN)
+
+The `/ingest/:session` WebSocket is the only endpoint that costs Gemini
+quota and can create/rename sessions, so it's the one worth locking down.
+Set `STAGE_TOKEN` to require a shared secret on it:
+
+- **What it protects**: audio ingest only. The audience viewer, `/api/*`,
+  and the caption WebSocket stay public and read-only either way.
+- **Unset**: ingest stays open to anyone with the URL, and the server logs
+  a startup warning. Fine for local dev, not for a public event.
+- **Set**: the ingest WebSocket handshake requires a matching `?token=`
+  query param, checked with a timing-safe comparison; a missing or wrong
+  token gets a `401` before any session is created or renamed.
+- **On the stage page**: enter the same value in the "Stage token" field
+  next to the session name. It's remembered in this browser's
+  `localStorage`, like the session id and name. A rejected connection
+  shows "Connection rejected — check the stage token".
+
+```bash
+# .env / shell
+STAGE_TOKEN=$(openssl rand -hex 24)
+```
+
 ## Deploying to Fly.io
 
 `fly.toml` deploys the existing `Dockerfile` as a single, always-on machine
@@ -148,13 +171,14 @@ docker compose up --build
 ```bash
 fly apps create captearla          # pick another name if taken, and update fly.toml
 fly secrets set GEMINI_API_KEY=... # without it the transcriber falls back to mock
+fly secrets set STAGE_TOKEN=$(openssl rand -hex 24) # protects audio ingest for a public event
 fly deploy --ha=false
 ```
 
 Fly serves it over HTTPS, which the stage page needs for microphone access.
-The ingest WebSocket has no authentication, so anyone who finds the URL can
-send audio and spend Gemini quota; keep the URL private or add a token before
-a public event.
+Without `STAGE_TOKEN` set, the ingest WebSocket has no authentication, so
+anyone who finds the URL can send audio and spend Gemini quota; set it
+before a public event (see "Protecting audio ingest" above).
 
 ## Scaling notes
 
