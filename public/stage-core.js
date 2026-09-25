@@ -11,6 +11,17 @@ export function audienceUrl(origin, sessionId) {
 }
 
 /**
+ * Builds the ingest WebSocket path for a session, optionally carrying a
+ * display name as a `?name=` query param. A blank or missing name omits
+ * the query param entirely, so the server keeps the session's current name.
+ */
+export function ingestPath(sessionId, name) {
+  const trimmedName = typeof name === "string" ? name.trim() : "";
+  const base = `/ingest/${encodeURIComponent(sessionId)}`;
+  return trimmedName ? `${base}?name=${encodeURIComponent(trimmedName)}` : base;
+}
+
+/**
  * Maps a 0..1 input level to per-segment lit/hot state for a segmented
  * level meter. `total` segments are lit proportionally to `level`; among
  * the lit segments, those at or past `hotFrom` are marked hot (e.g. to
