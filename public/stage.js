@@ -104,6 +104,7 @@ function updateAudienceLink() {
 sessionInput.value = readStoredSession() || "main-stage";
 sessionNameInput.value = readStoredSessionName();
 stageTokenInput.value = readStoredStageToken();
+stageTokenInput.addEventListener("input", () => stageTokenInput.removeAttribute("aria-invalid"));
 updateAudienceLink();
 
 sessionInput.addEventListener("input", updateAudienceLink);
@@ -137,8 +138,10 @@ async function loadKnownSessions() {
   }
 }
 
-function setStatus(text, isLive) {
-  statusBadge.classList.toggle("live", Boolean(isLive));
+/** @param {"idle" | "live" | "error"} state */
+function setStatus(text, state = "idle") {
+  statusBadge.classList.toggle("live", state === "live");
+  statusBadge.classList.toggle("error", state === "error");
   statusLabel.textContent = text;
 }
 
@@ -238,6 +241,7 @@ async function startMic() {
   let ingestOpened = false;
   ingestSocket.addEventListener("open", () => {
     ingestOpened = true;
+    stageTokenInput.removeAttribute("aria-invalid");
   });
   ingestSocket.addEventListener("error", () => {
     if (!ingestOpened) console.error("Ingest connection failed to open (check the stage token)");
@@ -245,7 +249,8 @@ async function startMic() {
   ingestSocket.addEventListener("close", () => {
     if (!ingestOpened && !ingestClosingIntentionally) {
       stopMic();
-      setStatus("Connection rejected — check the stage token", false);
+      setStatus("Rejected — check the stage token", "error");
+      stageTokenInput.setAttribute("aria-invalid", "true");
     }
   });
 
@@ -257,7 +262,7 @@ async function startMic() {
 
   connectCaptionsPreview(sessionId);
 
-  setStatus("On air", true);
+  setStatus("On air", "live");
   startButton.disabled = true;
   stopButton.disabled = false;
   sessionInput.disabled = true;
@@ -287,7 +292,7 @@ function stopMic() {
   ingestSocket = null;
   captionsSocket = null;
 
-  setStatus("Idle", false);
+  setStatus("Idle");
   startButton.disabled = false;
   stopButton.disabled = true;
   sessionInput.disabled = false;
@@ -299,7 +304,7 @@ startButton.addEventListener("click", () => {
   startMic().catch((error) => {
     console.error("Failed to start microphone capture", error);
     alert(`Could not start the microphone: ${error.message}`);
-    setStatus("Error", false);
+    setStatus("Error", "error");
   });
 });
 
