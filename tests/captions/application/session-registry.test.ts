@@ -36,4 +36,44 @@ describe("SessionRegistry", () => {
     registry.markLive("main-stage", false);
     expect(registry.get("main-stage")!.live).toBe(false);
   });
+
+  it("defaults a new session's name to its id when no name is given", () => {
+    const registry = new SessionRegistry([]);
+    const created = registry.ensure("room-c");
+
+    expect(created.name).toBe("room-c");
+  });
+
+  it("sets a new session's name when one is given on ensure()", () => {
+    const registry = new SessionRegistry([]);
+    const created = registry.ensure("room-c", "Room C");
+
+    expect(created.name).toBe("Room C");
+  });
+
+  it("trims a given name and caps it at 80 characters", () => {
+    const registry = new SessionRegistry([]);
+    const created = registry.ensure("room-c", `  ${"x".repeat(90)}  `);
+
+    expect(created.name).toBe("x".repeat(80));
+  });
+
+  it("renames an existing session when ensure() is called again with a new name", () => {
+    const registry = new SessionRegistry(["main-stage"]);
+
+    registry.ensure("main-stage", "Main Stage");
+
+    expect(registry.get("main-stage")!.name).toBe("Main Stage");
+  });
+
+  it("a blank or missing name on ensure() keeps the current name (last non-empty wins)", () => {
+    const registry = new SessionRegistry(["main-stage"]);
+    registry.ensure("main-stage", "Main Stage");
+
+    registry.ensure("main-stage");
+    expect(registry.get("main-stage")!.name).toBe("Main Stage");
+
+    registry.ensure("main-stage", "   ");
+    expect(registry.get("main-stage")!.name).toBe("Main Stage");
+  });
 });
