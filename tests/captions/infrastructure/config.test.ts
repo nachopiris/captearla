@@ -22,6 +22,11 @@ describe("loadConfig", () => {
     expect(config.geminiApiKey).toBe("secret");
   });
 
+  it("treats an empty TRANSCRIBER (as in .env.example) as unset", () => {
+    expect(loadConfig({ GEMINI_API_KEY: "secret", TRANSCRIBER: "" }).transcriber).toBe("gemini");
+    expect(loadConfig({ TRANSCRIBER: "" }).transcriber).toBe("mock");
+  });
+
   it("lets TRANSCRIBER override the key-based default", () => {
     const config = loadConfig({ GEMINI_API_KEY: "secret", TRANSCRIBER: "mock" });
     expect(config.transcriber).toBe("mock");

@@ -15,32 +15,32 @@ Built for the Nerdearla Vibeathon 2026.
 ## How it works
 
 ```
- ┌────────────┐   mic (PCM16 16kHz)   ┌──────────────────────────────┐
- │ stage.html │ ────── WS ──────────► │   /ingest/:session           │
- │ (operator) │                       │                               │
- └────────────┘                       │  AudioChunker (silence-cut)  │
-                                       │        │                    │
-                                       │        ▼                    │
-                                       │  TranscriptionPipeline       │
-                                       │  (ordered, rolling context)  │
-                                       │        │                    │
-                                       │        ▼                    │
-                                       │  Transcriber port            │
-                                       │  ┌────────────┐ ┌──────────┐ │
-                                       │  │MockTranscri-│ │ Gemini   │ │
-                                       │  │ber (no key) │ │Transcriber│ │
-                                       │  └────────────┘ └──────────┘ │
-                                       │        │                    │
-                                       │        ▼                    │
-                                       │      CaptionBus              │
-                                       └──────────────────────────────┘
-                                               │            ▲
-                                        WS  /captions/:session   GET /api/sessions
-                                               ▼            │
-                                       ┌────────────┐  ┌────────────┐
-                                       │ index.html │  │  (polling) │
-                                       │ (audience) │  │            │
-                                       └────────────┘  └────────────┘
+ ┌────────────┐   mic (PCM16 16kHz)   ┌──────────────────────────────────┐
+ │ stage.html │ ──────── WS ───────►  │         /ingest/:session         │
+ │ (operator) │                       │                                  │
+ └────────────┘                       │    AudioChunker (silence-cut)    │
+                                      │                │                 │
+                                      │                ▼                 │
+                                      │      TranscriptionPipeline       │
+                                      │    (ordered, rolling context)    │
+                                      │                │                 │
+                                      │                ▼                 │
+                                      │         Transcriber port         │
+                                      │  ┌──────────────┐ ┌──────────┐   │
+                                      │  │     Mock     │ │  Gemini  │   │
+                                      │  │ (no API key) │ │  (real)  │   │
+                                      │  └──────────────┘ └──────────┘   │
+                                      │                │                 │
+                                      │                ▼                 │
+                                      │            CaptionBus            │
+                                      └──────────────────────────────────┘
+                                      │                   ▲
+                                        WS /captions/:session  GET /api/sessions
+                                              ▼                (polling)
+                                      ┌────────────────┐          │
+                                      │   index.html   │ ─────────┘
+                                      │   (audience)   │
+                                      └────────────────┘
 ```
 
 - **One process handles many sessions.** Each session id gets its own
