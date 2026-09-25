@@ -129,8 +129,10 @@ docker compose up --build
 
 - A single Node process comfortably handles many parallel sessions: the
   per-session state (chunker + pipeline) is a few small objects, and
-  transcription calls for different sessions run concurrently (only calls
-  *within* the same session are serialized, to keep caption order correct).
+  transcription calls for different sessions run concurrently. Within the
+  same session, up to `TRANSCRIBE_MAX_IN_FLIGHT` calls run concurrently too;
+  captions still publish in strict chunk order regardless of which call
+  finishes first (see `TRANSCRIBE_MAX_IN_FLIGHT` below).
 - Beyond one process/machine, shard by session id (e.g. consistent hashing
   across N instances behind a load balancer, or route each room's
   `stage.html`/`index.html` to a dedicated instance/URL). No shared state is
@@ -161,6 +163,16 @@ TRANSCRIBER=mock MOCK_LATENCY_MS=1500 MOCK_LATENCY_JITTER_MS=300 npm start
 `MOCK_LATENCY_MS`/`MOCK_LATENCY_JITTER_MS` default to `0` (instant, the old
 behavior) and fall back to `0` on invalid or negative input. The simulated
 delay per transcription call is `max(0, latencyMs + jitter)`.
+
+`TRANSCRIBE_MAX_IN_FLIGHT` controls how many `transcribe` calls run
+concurrently *per session* (default `3`; falls back to `3` on a missing,
+non-integer, or non-positive value; `1` reproduces the old fully serial
+behavior). Captions always publish in strict chunk order no matter how many
+calls are in flight, but the rolling context passed to the model (the latest
+*published* captions) can lag by up to `TRANSCRIBE_MAX_IN_FLIGHT - 1` chunks
+under load, since a call is dispatched before earlier concurrent calls have
+published. That's an accepted tradeoff for keeping throughput above one
+chunk per model round-trip when model latency exceeds chunk duration.
 
 ### 2. Run the bench
 
@@ -201,14 +213,17 @@ Overall: count=67 p50=1500ms p95=1810ms max=1920ms drift=4.0ms/min (threshold 50
   configured `MOCK_LATENCY_MS`.
 - `driftMsPerMin` is the least-squares slope of latency over elapsed time. A
   value near 0 means captions keep pace; a large positive value means the
-  per-session pipeline (which serializes transcription calls) can't keep up
-  and captions are progressively falling behind.
+  per-session pipeline can't keep up (its `TRANSCRIBE_MAX_IN_FLIGHT`
+  concurrent calls are all saturated) and captions are progressively falling
+  behind.
 - A session (or the overall row) is flagged `BACKLOG` when its drift exceeds
   `--max-drift`, and the process exits non-zero — useful as a capacity gate.
-  To reproduce backlog deliberately, set `MOCK_LATENCY_MS` above the chunk
-  duration (`AudioChunker`'s `maxDurationMs`, 6000ms by default): each chunk
-  then takes longer to transcribe than it took to record, so the queue grows
-  without bound.
+  To reproduce backlog deliberately, set `MOCK_LATENCY_MS` above
+  `chunk duration * TRANSCRIBE_MAX_IN_FLIGHT` (chunk duration is
+  `AudioChunker`'s `maxDurationMs`, 6000ms by default): each chunk then takes
+  longer to transcribe than the pipeline can absorb concurrently, so the
+  queue grows without bound. Raising `TRANSCRIBE_MAX_IN_FLIGHT` pushes that
+  threshold higher at the cost of more context lag (see above).
 
 ### Real Gemini load runs
 
