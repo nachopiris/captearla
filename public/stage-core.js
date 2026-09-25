@@ -7,7 +7,7 @@
  * from the current page's origin.
  */
 export function audienceUrl(origin, sessionId) {
-  return `${origin}/?session=${encodeURIComponent(sessionId)}`;
+  return `${origin}/viewer.html?session=${encodeURIComponent(sessionId)}`;
 }
 
 /**

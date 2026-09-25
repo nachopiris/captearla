@@ -75,6 +75,16 @@ svg {
   gap: 8px;
   color: var(--text);
   text-decoration: none;
+  border-radius: 6px;
+}
+
+.brand:hover {
+  color: var(--accent);
+}
+
+.brand:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
 }
 
 .brand-icon {
@@ -145,6 +155,10 @@ input {
   background: var(--surface-2);
   border: 1px solid var(--border);
   border-radius: 10px;
+}
+
+input[aria-invalid="true"] {
+  border-color: var(--live);
 }
 
 input:focus-visible {
@@ -218,6 +232,12 @@ input:focus-visible {
 .badge.live {
   background: var(--live-bg);
   border-color: transparent;
+  color: var(--live-text);
+}
+
+.badge.error {
+  background: var(--live-bg);
+  border-color: var(--live);
   color: var(--live-text);
 }
 
@@ -670,7 +690,8 @@ input:focus-visible {
    Stage — session panel
    ========================================================================== */
 #sessionInput,
-#sessionNameInput {
+#sessionNameInput,
+#stageTokenInput {
   height: 48px;
   padding: 0 14px;
   font-size: 16px;
@@ -794,5 +815,82 @@ input:focus-visible {
 @media (max-width: 900px) {
   .stage-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+/* ==========================================================================
+   Landing
+   ========================================================================== */
+.landing-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 40px;
+  padding: 40px 32px 72px;
+}
+
+.landing-tagline {
+  text-align: center;
+}
+
+.landing-cards {
+  display: flex;
+  gap: 24px;
+  width: 100%;
+  max-width: 720px;
+}
+
+.landing-card {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 32px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  color: var(--text);
+  text-decoration: none;
+}
+
+.landing-card-icon {
+  color: var(--accent);
+}
+
+.landing-card-title {
+  font-family: var(--font-ui);
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.landing-card-desc {
+  color: var(--text-2);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.landing-card:hover {
+  border-color: var(--accent);
+}
+
+.landing-card:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ==========================================================================
+   Landing — phone (<=640px)
+   ========================================================================== */
+@media (max-width: 640px) {
+  .landing-main {
+    padding: 32px 16px 56px;
+    gap: 32px;
+  }
+
+  .landing-cards {
+    flex-direction: column;
   }
 }
