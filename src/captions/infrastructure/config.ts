@@ -21,7 +21,7 @@ export interface Config {
 }
 
 const DEFAULT_PORT = 3000;
-const DEFAULT_GEMINI_MODEL = "gemini-2.5-flash";
+const DEFAULT_GEMINI_MODEL = "gemini-3.5-flash-lite";
 const DEFAULT_SESSIONS = ["main-stage", "room-a", "room-b"];
 const DEFAULT_TRANSCRIBE_MAX_IN_FLIGHT = 3;
 

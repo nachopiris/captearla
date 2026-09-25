@@ -1,7 +1,7 @@
 import type { Transcriber, TranscribeInput, TranscribeResult } from "../domain/transcriber.js";
 import { pcmToWav } from "./pcm-to-wav.js";
 
-const DEFAULT_MODEL = "gemini-2.5-flash";
+const DEFAULT_MODEL = "gemini-3.5-flash-lite";
 const DEFAULT_THINKING_LEVEL: ThinkingLevel = "minimal";
 
 const EMPTY_RESULT: TranscribeResult = { text: "", lang: "", es: "", en: "" };
