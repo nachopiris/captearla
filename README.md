@@ -11,8 +11,9 @@ A single Node process serves three things:
 
 | URL | Who uses it |
 | --- | --- |
+| `/` | Landing page: choose Stage or Viewer |
 | `/stage.html` | One operator per room, on the device with the room's audio feed |
-| `/` | The audience: pick a room and a language |
+| `/viewer.html` | The audience: pick a room and a language |
 | `/api/sessions` | Health check / session list |
 
 ## Before you deploy
@@ -108,9 +109,10 @@ All settings are environment variables (see `.env.example`).
    gets the room's audio mix (mixer output beats a mic pointed at the crowd).
    Pick the session id (e.g. `room-a`), optionally give it a display name
    (e.g. "Sala Principal"), enter the stage token, and start.
-2. **For the audience**, share `https://<your-host>/` (a QR code at the door
-   works well). Deep links pre-select a room and language:
-   `/?session=room-a&lang=es`.
+2. **For the audience**, share `https://<your-host>/viewer.html` (a QR code
+   at the door works well). Deep links pre-select a room and language:
+   `/viewer.html?session=room-a&lang=es` (old `/?session=` links still
+   redirect to the viewer).
 3. **For a screen next to the stage**, open the viewer and use projector
    mode (fullscreen, no chrome).
 

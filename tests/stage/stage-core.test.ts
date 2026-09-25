@@ -4,18 +4,20 @@ import { audienceUrl, ingestPath, meterSegments } from "../../public/stage-core.
 describe("audienceUrl", () => {
   test("builds a viewer link for the given origin and session id", () => {
     expect(audienceUrl("https://captearla.example", "main-stage")).toBe(
-      "https://captearla.example/?session=main-stage"
+      "https://captearla.example/viewer.html?session=main-stage"
     );
   });
 
   test("URL-encodes a session id with special characters", () => {
     expect(audienceUrl("https://captearla.example", "room one/2")).toBe(
-      "https://captearla.example/?session=room%20one%2F2"
+      "https://captearla.example/viewer.html?session=room%20one%2F2"
     );
   });
 
-  test("returns an origin-only link when the session id is empty", () => {
-    expect(audienceUrl("https://captearla.example", "")).toBe("https://captearla.example/?session=");
+  test("returns a viewer link with an empty session param when the session id is empty", () => {
+    expect(audienceUrl("https://captearla.example", "")).toBe(
+      "https://captearla.example/viewer.html?session="
+    );
   });
 });
 
