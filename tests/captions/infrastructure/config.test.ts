@@ -76,4 +76,30 @@ describe("loadConfig", () => {
       expect(config.transcribeMaxInFlight).toBe(3);
     }
   );
+
+  it("leaves geminiThinkingLevel undefined when GEMINI_THINKING_LEVEL is unset", () => {
+    const config = loadConfig({});
+    expect(config.geminiThinkingLevel).toBeUndefined();
+  });
+
+  it.each(["minimal", "low", "medium", "high"])(
+    "parses a valid GEMINI_THINKING_LEVEL (%s)",
+    (raw) => {
+      const config = loadConfig({ GEMINI_THINKING_LEVEL: raw });
+      expect(config.geminiThinkingLevel).toBe(raw);
+    }
+  );
+
+  it("accepts GEMINI_THINKING_LEVEL case-insensitively", () => {
+    const config = loadConfig({ GEMINI_THINKING_LEVEL: "HIGH" });
+    expect(config.geminiThinkingLevel).toBe("high");
+  });
+
+  it.each(["", "extreme", "0", "  "])(
+    "falls back to undefined for an invalid GEMINI_THINKING_LEVEL (%s)",
+    (raw) => {
+      const config = loadConfig({ GEMINI_THINKING_LEVEL: raw });
+      expect(config.geminiThinkingLevel).toBeUndefined();
+    }
+  );
 });

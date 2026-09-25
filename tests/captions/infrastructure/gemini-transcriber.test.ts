@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { GeminiTranscriber } from "../../../src/captions/infrastructure/gemini-transcriber.js";
+import { GeminiTranscriber, thinkingConfigFor } from "../../../src/captions/infrastructure/gemini-transcriber.js";
 import type { GeminiClient } from "../../../src/captions/infrastructure/gemini-transcriber.js";
 
 const chunk = { pcm: new Int16Array([1, 2, 3, 4]), sampleRate: 16000 as const, context: "previous line" };
@@ -37,14 +37,38 @@ describe("GeminiTranscriber", () => {
     expect(decoded.toString("ascii", 0, 4)).toBe("RIFF");
   });
 
-  it("disables model thinking to keep per-chunk latency low", async () => {
+  it("sends thinkingBudget 0 for a 2.x model to keep per-chunk latency low", async () => {
     const client = stubClient(JSON.stringify({ text: "hola", lang: "es", es: "hola", en: "hello" }));
-    const transcriber = new GeminiTranscriber({ client, model: "gemini-test-model" });
+    const transcriber = new GeminiTranscriber({ client, model: "gemini-2.5-flash", thinkingLevel: "high" });
 
     await transcriber.transcribe(chunk);
 
     const call = (client.models.generateContent as ReturnType<typeof vi.fn>).mock.calls[0][0];
     expect(call.config.thinkingConfig).toEqual({ thinkingBudget: 0 });
+  });
+
+  it("sends the selected thinkingLevel for a 3.x model", async () => {
+    const client = stubClient(JSON.stringify({ text: "hola", lang: "es", es: "hola", en: "hello" }));
+    const transcriber = new GeminiTranscriber({
+      client,
+      model: "gemini-3.5-flash-lite",
+      thinkingLevel: "low"
+    });
+
+    await transcriber.transcribe(chunk);
+
+    const call = (client.models.generateContent as ReturnType<typeof vi.fn>).mock.calls[0][0];
+    expect(call.config.thinkingConfig).toEqual({ thinkingLevel: "low" });
+  });
+
+  it("defaults to thinkingLevel minimal for a 3.x model when no level is configured", async () => {
+    const client = stubClient(JSON.stringify({ text: "hola", lang: "es", es: "hola", en: "hello" }));
+    const transcriber = new GeminiTranscriber({ client, model: "gemini-3.5-flash-lite" });
+
+    await transcriber.transcribe(chunk);
+
+    const call = (client.models.generateContent as ReturnType<typeof vi.fn>).mock.calls[0][0];
+    expect(call.config.thinkingConfig).toEqual({ thinkingLevel: "minimal" });
   });
 
   it("parses the model's JSON response into a TranscribeResult", async () => {
@@ -91,5 +115,19 @@ describe("GeminiTranscriber", () => {
 
     const call = (client.models.generateContent as ReturnType<typeof vi.fn>).mock.calls[0][0];
     expect(call.model).toBe("gemini-2.5-flash");
+  });
+});
+
+describe("thinkingConfigFor", () => {
+  it("returns thinkingBudget 0 for a 2.x model, ignoring any requested level", () => {
+    expect(thinkingConfigFor("gemini-2.5-flash", "high")).toEqual({ thinkingBudget: 0 });
+  });
+
+  it("defaults to thinkingLevel minimal for a non-2.x model when no level is given", () => {
+    expect(thinkingConfigFor("gemini-3.5-flash-lite")).toEqual({ thinkingLevel: "minimal" });
+  });
+
+  it("returns the requested thinkingLevel for a non-2.x model", () => {
+    expect(thinkingConfigFor("gemini-3.7-flash", "low")).toEqual({ thinkingLevel: "low" });
   });
 });

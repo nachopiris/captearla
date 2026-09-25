@@ -3,7 +3,7 @@ import { SessionRegistry } from "./captions/application/session-registry.js";
 import { CaptionBus } from "./captions/application/caption-bus.js";
 import { SessionPipelineManager } from "./captions/application/session-pipeline-manager.js";
 import { MockTranscriber } from "./captions/infrastructure/mock-transcriber.js";
-import { GeminiTranscriber } from "./captions/infrastructure/gemini-transcriber.js";
+import { GeminiTranscriber, thinkingConfigFor } from "./captions/infrastructure/gemini-transcriber.js";
 import { createServer } from "./captions/infrastructure/http-server.js";
 import type { Transcriber } from "./captions/domain/transcriber.js";
 import { fileURLToPath } from "node:url";
@@ -32,8 +32,16 @@ async function buildTranscriber(config: ReturnType<typeof loadConfig>): Promise<
 
   const { GoogleGenAI } = await import("@google/genai");
   const client = new GoogleGenAI({ apiKey: config.geminiApiKey });
-  console.log(`[captearla] using GeminiTranscriber (model: ${config.geminiModel})`);
-  return new GeminiTranscriber({ client, model: config.geminiModel, logger });
+  const thinkingConfig = thinkingConfigFor(config.geminiModel, config.geminiThinkingLevel);
+  const thinkingDescription =
+    "thinkingBudget" in thinkingConfig ? `budget ${thinkingConfig.thinkingBudget}` : `level ${thinkingConfig.thinkingLevel}`;
+  console.log(`[captearla] using GeminiTranscriber (model: ${config.geminiModel}, thinking: ${thinkingDescription})`);
+  return new GeminiTranscriber({
+    client,
+    model: config.geminiModel,
+    thinkingLevel: config.geminiThinkingLevel,
+    logger
+  });
 }
 
 async function main(): Promise<void> {

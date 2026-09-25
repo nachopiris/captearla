@@ -1,10 +1,16 @@
+import type { ThinkingLevel } from "./gemini-transcriber.js";
+
 export type TranscriberKind = "mock" | "gemini";
+
+const THINKING_LEVELS: readonly ThinkingLevel[] = ["minimal", "low", "medium", "high"];
 
 export interface Config {
   port: number;
   transcriber: TranscriberKind;
   geminiApiKey?: string;
   geminiModel: string;
+  /** Gemini 3.x thinking effort override. Unset lets the model use its lowest level. */
+  geminiThinkingLevel?: ThinkingLevel;
   sessions: string[];
   /** Simulated MockTranscriber latency in milliseconds. Default 0. */
   mockLatencyMs: number;
@@ -46,6 +52,12 @@ function parseNonNegativeMs(raw: string | undefined): number {
   return value;
 }
 
+/** Parses `GEMINI_THINKING_LEVEL` case-insensitively; missing or invalid values -> undefined. */
+function parseThinkingLevel(raw: string | undefined): ThinkingLevel | undefined {
+  const value = raw?.trim().toLowerCase();
+  return THINKING_LEVELS.find((level) => level === value);
+}
+
 /** Parses a positive integer max-in-flight count; anything else falls back to the default (3). */
 function parseMaxInFlight(raw: string | undefined): number {
   if (raw === undefined) return DEFAULT_TRANSCRIBE_MAX_IN_FLIGHT;
@@ -62,6 +74,7 @@ export function loadConfig(env: EnvSource): Config {
     transcriber: parseTranscriberKind(env),
     geminiApiKey: env.GEMINI_API_KEY,
     geminiModel: env.GEMINI_MODEL ?? DEFAULT_GEMINI_MODEL,
+    geminiThinkingLevel: parseThinkingLevel(env.GEMINI_THINKING_LEVEL),
     sessions: parseSessions(env.SESSIONS),
     mockLatencyMs: parseNonNegativeMs(env.MOCK_LATENCY_MS),
     mockLatencyJitterMs: parseNonNegativeMs(env.MOCK_LATENCY_JITTER_MS),

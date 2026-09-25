@@ -2,8 +2,44 @@ import type { Transcriber, TranscribeInput, TranscribeResult } from "../domain/t
 import { pcmToWav } from "./pcm-to-wav.js";
 
 const DEFAULT_MODEL = "gemini-2.5-flash";
+const DEFAULT_THINKING_LEVEL: ThinkingLevel = "minimal";
 
 const EMPTY_RESULT: TranscribeResult = { text: "", lang: "", es: "", en: "" };
+
+/**
+ * Thinking effort level accepted by Gemini 3.x's `thinkingConfig.thinkingLevel`.
+ * Kept as a plain string union (rather than importing the SDK's own
+ * `ThinkingLevel` enum, whose members are the uppercase Vertex/Enterprise
+ * names) because the values that actually go on the wire for the Gemini
+ * Developer API are lowercase, as confirmed by a direct probe against the
+ * real API (see the feature document for evidence).
+ */
+export type ThinkingLevel = "minimal" | "low" | "medium" | "high";
+
+/**
+ * Selects the `thinkingConfig` to send with a `generateContent` call, based
+ * on the target model's generation.
+ *
+ * Gemini 2.x models accept `thinkingBudget`, and transcription/translation
+ * gains nothing from reasoning tokens, so thinking stays disabled
+ * (`thinkingBudget: 0`) to keep per-chunk latency low; any requested level is
+ * ignored on this generation.
+ *
+ * Gemini 3.x models reject `thinkingBudget` with a `400 INVALID_ARGUMENT`
+ * error and require `thinkingLevel` instead. There is no way to fully
+ * disable thinking on 3.x, so the lowest available level is used unless a
+ * different one is requested via `GEMINI_THINKING_LEVEL`. The lowest level is
+ * `minimal` on 3.5 Flash-Lite / 3.6 Flash, and `low` on 3.7 / 3.8 Flash.
+ */
+export function thinkingConfigFor(
+  model: string,
+  level?: ThinkingLevel
+): { thinkingBudget: number } | { thinkingLevel: ThinkingLevel } {
+  if (model.startsWith("gemini-2.")) {
+    return { thinkingBudget: 0 };
+  }
+  return { thinkingLevel: level ?? DEFAULT_THINKING_LEVEL };
+}
 
 /**
  * Minimal shape of `@google/genai`'s `GoogleGenAI` client that this adapter
@@ -24,6 +60,7 @@ export interface GeminiClient {
 export interface GeminiTranscriberOptions {
   client: GeminiClient;
   model?: string;
+  thinkingLevel?: ThinkingLevel;
   logger?: { error: (message: string, error: unknown) => void };
 }
 
@@ -59,9 +96,11 @@ function buildPrompt(context: string): string {
  */
 export class GeminiTranscriber implements Transcriber {
   private readonly model: string;
+  private readonly thinkingLevel?: ThinkingLevel;
 
   constructor(private readonly options: GeminiTranscriberOptions) {
     this.model = options.model ?? DEFAULT_MODEL;
+    this.thinkingLevel = options.thinkingLevel;
   }
 
   async transcribe(input: TranscribeInput): Promise<TranscribeResult> {
@@ -84,9 +123,7 @@ export class GeminiTranscriber implements Transcriber {
         config: {
           responseMimeType: "application/json",
           responseSchema: RESPONSE_SCHEMA,
-          // Transcription/translation gains nothing from reasoning tokens, and
-          // thinking adds latency to every chunk on 2.5 Flash models.
-          thinkingConfig: { thinkingBudget: 0 }
+          thinkingConfig: thinkingConfigFor(this.model, this.thinkingLevel)
         }
       });
     } catch (error) {

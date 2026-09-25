@@ -102,12 +102,19 @@ npm start
 key present). Open `stage.html` on the machine/device with the mixer or
 microphone feed for a room, and `index.html` for the audience.
 
+`GEMINI_THINKING_LEVEL` (`minimal|low|medium|high`) overrides the thinking
+effort used on Gemini 3.x models, which require `thinkingLevel` instead of
+`thinkingBudget` (2.x models always run with thinking disabled and ignore
+this setting). It defaults to the model's lowest available level when unset
+or invalid.
+
 ### Docker
 
 ```bash
 docker compose up --build
-# TRANSCRIBER, GEMINI_API_KEY, GEMINI_MODEL, SESSIONS, PORT all pass through
-# from your shell environment or a .env file (see docker-compose.yml).
+# TRANSCRIBER, GEMINI_API_KEY, GEMINI_MODEL, GEMINI_THINKING_LEVEL, SESSIONS,
+# PORT all pass through from your shell environment or a .env file (see
+# docker-compose.yml).
 ```
 
 ## Running a real conference
