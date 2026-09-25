@@ -544,7 +544,19 @@ input:focus-visible {
 /* ==========================================================================
    Viewer — phone (<=640px)
    ========================================================================== */
+.topbar-controls .field {
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+}
+
 @media (max-width: 640px) {
+  .topbar-controls .field {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+  }
+
   .topbar {
     height: auto;
     flex-wrap: wrap;

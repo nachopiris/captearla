@@ -97,6 +97,10 @@ Branch: `feat/live-captions-prototype` (existing feature branch).
   localStorage/datalist logic is untouched. `public/styles.css` — added stage grid/panel/meter/
   audience-link/preview rules and the `<=900px` single-column breakpoint.
 
+- T2 fix: viewer header labels (Session, Language) rendered above their controls because the
+  shared `.field` is a column; `.topbar-controls .field` is now a row on desktop and stays a
+  column at <=640px, per the canvas (route: inline, one mechanical CSS rule).
+
 ## Verification
 - `npm test`: 13 files / 74 tests passed (10 new in `tests/stage/stage-core.test.ts`, all
   pre-existing suites green, including `tests/viewer/viewer-core.test.ts` 13/13).
