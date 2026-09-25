@@ -140,6 +140,22 @@ docker compose up --build
   (`/ingest/:session?name=...`), trimmed and capped at 80 characters
   server-side, and the last non-empty name sent wins.
 
+## Deploying to Fly.io
+
+`fly.toml` deploys the existing `Dockerfile` as a single, always-on machine
+(state is in memory, so do not scale it past one machine per shard):
+
+```bash
+fly apps create captearla          # pick another name if taken, and update fly.toml
+fly secrets set GEMINI_API_KEY=... # without it the transcriber falls back to mock
+fly deploy --ha=false
+```
+
+Fly serves it over HTTPS, which the stage page needs for microphone access.
+The ingest WebSocket has no authentication, so anyone who finds the URL can
+send audio and spend Gemini quota; keep the URL private or add a token before
+a public event.
+
 ## Scaling notes
 
 - A single Node process comfortably handles many parallel sessions: the
