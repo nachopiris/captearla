@@ -83,7 +83,10 @@ export class GeminiTranscriber implements Transcriber {
         ],
         config: {
           responseMimeType: "application/json",
-          responseSchema: RESPONSE_SCHEMA
+          responseSchema: RESPONSE_SCHEMA,
+          // Transcription/translation gains nothing from reasoning tokens, and
+          // thinking adds latency to every chunk on 2.5 Flash models.
+          thinkingConfig: { thinkingBudget: 0 }
         }
       });
     } catch (error) {

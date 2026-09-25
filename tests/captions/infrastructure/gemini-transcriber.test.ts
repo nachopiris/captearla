@@ -37,6 +37,16 @@ describe("GeminiTranscriber", () => {
     expect(decoded.toString("ascii", 0, 4)).toBe("RIFF");
   });
 
+  it("disables model thinking to keep per-chunk latency low", async () => {
+    const client = stubClient(JSON.stringify({ text: "hola", lang: "es", es: "hola", en: "hello" }));
+    const transcriber = new GeminiTranscriber({ client, model: "gemini-test-model" });
+
+    await transcriber.transcribe(chunk);
+
+    const call = (client.models.generateContent as ReturnType<typeof vi.fn>).mock.calls[0][0];
+    expect(call.config.thinkingConfig).toEqual({ thinkingBudget: 0 });
+  });
+
   it("parses the model's JSON response into a TranscribeResult", async () => {
     const client = stubClient(JSON.stringify({ text: "hola mundo", lang: "es", es: "hola mundo", en: "hello world" }));
     const transcriber = new GeminiTranscriber({ client, model: "gemini-test-model" });
