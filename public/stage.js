@@ -4,13 +4,14 @@
 // by subscribing to /captions/:session.
 
 import { createCaptionBuffer } from "./viewer-core.js";
-import { audienceUrl, meterSegments } from "./stage-core.js";
+import { audienceUrl, ingestPath, meterSegments } from "./stage-core.js";
 
 const METER_SEGMENT_COUNT = 28;
 const METER_HOT_FROM = 24;
 const PREVIEW_LINES = 3;
 
 const sessionInput = document.getElementById("sessionInput");
+const sessionNameInput = document.getElementById("sessionNameInput");
 const knownSessions = document.getElementById("knownSessions");
 const startButton = document.getElementById("startButton");
 const stopButton = document.getElementById("stopButton");
@@ -58,12 +59,29 @@ function storeSession(session) {
   }
 }
 
+function readStoredSessionName() {
+  try {
+    return localStorage.getItem("captearla.stage.sessionName") ?? "";
+  } catch {
+    return "";
+  }
+}
+
+function storeSessionName(name) {
+  try {
+    localStorage.setItem("captearla.stage.sessionName", name);
+  } catch {
+    // Ignore storage failures (private mode, disabled storage, etc.).
+  }
+}
+
 function updateAudienceLink() {
   const sessionId = sessionInput.value.trim();
   audienceLinkEl.textContent = audienceUrl(location.origin, sessionId);
 }
 
 sessionInput.value = readStoredSession() || "main-stage";
+sessionNameInput.value = readStoredSessionName();
 updateAudienceLink();
 
 sessionInput.addEventListener("input", updateAudienceLink);
@@ -168,6 +186,7 @@ async function startMic() {
     return;
   }
   storeSession(sessionId);
+  storeSessionName(sessionNameInput.value);
 
   mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
   audioContext = new AudioContext();
@@ -182,7 +201,7 @@ async function startMic() {
   workletNode = new AudioWorkletNode(audioContext, "pcm-worklet");
   source.connect(workletNode);
 
-  ingestSocket = new WebSocket(wsUrl(`/ingest/${encodeURIComponent(sessionId)}`));
+  ingestSocket = new WebSocket(wsUrl(ingestPath(sessionId, sessionNameInput.value)));
   ingestSocket.binaryType = "arraybuffer";
 
   workletNode.port.onmessage = (event) => {
@@ -197,6 +216,7 @@ async function startMic() {
   startButton.disabled = true;
   stopButton.disabled = false;
   sessionInput.disabled = true;
+  sessionNameInput.disabled = true;
 
   updateLevelMeter();
 }
@@ -224,6 +244,7 @@ function stopMic() {
   startButton.disabled = false;
   stopButton.disabled = true;
   sessionInput.disabled = false;
+  sessionNameInput.disabled = false;
 }
 
 startButton.addEventListener("click", () => {

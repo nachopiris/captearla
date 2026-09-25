@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { audienceUrl, meterSegments } from "../../public/stage-core.js";
+import { audienceUrl, ingestPath, meterSegments } from "../../public/stage-core.js";
 
 describe("audienceUrl", () => {
   test("builds a viewer link for the given origin and session id", () => {
@@ -16,6 +16,25 @@ describe("audienceUrl", () => {
 
   test("returns an origin-only link when the session id is empty", () => {
     expect(audienceUrl("https://captearla.example", "")).toBe("https://captearla.example/?session=");
+  });
+});
+
+describe("ingestPath", () => {
+  test("builds the ingest path without a name query param when no name is given", () => {
+    expect(ingestPath("main-stage")).toBe("/ingest/main-stage");
+  });
+
+  test("omits the name query param when the name is blank or whitespace-only", () => {
+    expect(ingestPath("main-stage", "")).toBe("/ingest/main-stage");
+    expect(ingestPath("main-stage", "   ")).toBe("/ingest/main-stage");
+  });
+
+  test("appends a trimmed, URL-encoded name query param when given", () => {
+    expect(ingestPath("room-a", "  Sala A  ")).toBe("/ingest/room-a?name=Sala%20A");
+  });
+
+  test("URL-encodes a session id with special characters", () => {
+    expect(ingestPath("room one/2")).toBe("/ingest/room%20one%2F2");
   });
 });
 

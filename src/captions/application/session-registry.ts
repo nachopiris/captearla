@@ -6,6 +6,12 @@ export interface SessionInfo {
   lastActivity: number;
 }
 
+const MAX_NAME_LENGTH = 80;
+
+function sanitizeName(name: string | undefined): string {
+  return (name ?? "").trim().slice(0, MAX_NAME_LENGTH);
+}
+
 /**
  * Tracks known conference sessions. Predefined sessions are pre-populated
  * (not live); new sessions are also auto-created on first ingest via
@@ -20,12 +26,23 @@ export class SessionRegistry {
     }
   }
 
-  ensure(id: string, name: string = id): SessionInfo {
+  /**
+   * Looks up a session, creating it (not live) on first use. A blank or
+   * missing `name` leaves the session's current name untouched (new
+   * sessions default to their id); a non-empty `name` is trimmed, capped
+   * at 80 characters, and renames the session (last non-empty name wins).
+   */
+  ensure(id: string, name?: string): SessionInfo {
+    const sanitized = sanitizeName(name);
     let session = this.sessions.get(id);
     if (!session) {
       const timestamp = this.now();
-      session = { id, name, live: false, createdAt: timestamp, lastActivity: timestamp };
+      session = { id, name: sanitized || id, live: false, createdAt: timestamp, lastActivity: timestamp };
       this.sessions.set(id, session);
+      return session;
+    }
+    if (sanitized) {
+      session.name = sanitized;
     }
     return session;
   }

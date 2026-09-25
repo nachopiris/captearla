@@ -167,4 +167,41 @@ describe("HTTP + WS server", () => {
     const afterClose = (await (await fetch(`${baseUrl}/api/sessions`)).json()) as SessionSummary[];
     expect(afterClose.find((s) => s.id === "main-stage")?.live).toBe(false);
   });
+
+  it("applies a name given on the ingest socket's ?name= query param", async () => {
+    const ingestSocket = new WebSocket(`${wsBaseUrl}/ingest/room-a?name=${encodeURIComponent("Sala A")}`);
+    await waitForOpen(ingestSocket);
+
+    type SessionSummary = { id: string; name: string };
+    const sessions = (await (await fetch(`${baseUrl}/api/sessions`)).json()) as SessionSummary[];
+    expect(sessions.find((s) => s.id === "room-a")?.name).toBe("Sala A");
+
+    ingestSocket.close();
+  });
+
+  it("keeps the session id as the name when the ingest socket omits ?name=", async () => {
+    const ingestSocket = new WebSocket(`${wsBaseUrl}/ingest/room-b`);
+    await waitForOpen(ingestSocket);
+
+    type SessionSummary = { id: string; name: string };
+    const sessions = (await (await fetch(`${baseUrl}/api/sessions`)).json()) as SessionSummary[];
+    expect(sessions.find((s) => s.id === "room-b")?.name).toBe("room-b");
+
+    ingestSocket.close();
+  });
+
+  it("keeps the previous name when a later ingest socket sends a blank ?name=", async () => {
+    const first = new WebSocket(`${wsBaseUrl}/ingest/room-a?name=${encodeURIComponent("Sala A")}`);
+    await waitForOpen(first);
+    first.close();
+
+    const second = new WebSocket(`${wsBaseUrl}/ingest/room-a?name=`);
+    await waitForOpen(second);
+
+    type SessionSummary = { id: string; name: string };
+    const sessions = (await (await fetch(`${baseUrl}/api/sessions`)).json()) as SessionSummary[];
+    expect(sessions.find((s) => s.id === "room-a")?.name).toBe("Sala A");
+
+    second.close();
+  });
 });

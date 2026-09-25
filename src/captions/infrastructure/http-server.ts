@@ -100,8 +100,8 @@ export function createServer(deps: HttpServerDeps): Server {
   const ingestWss = new WebSocketServer({ noServer: true });
   const captionsWss = new WebSocketServer({ noServer: true });
 
-  ingestWss.on("connection", (socket: WebSocket, sessionId: string) => {
-    registry.ensure(sessionId);
+  ingestWss.on("connection", (socket: WebSocket, sessionId: string, name?: string) => {
+    registry.ensure(sessionId, name);
     registry.markLive(sessionId, true);
 
     socket.on("message", (data: RawData) => {
@@ -144,8 +144,9 @@ export function createServer(deps: HttpServerDeps): Server {
 
     const ingestMatch = url.pathname.match(INGEST_PATH);
     if (ingestMatch) {
+      const name = url.searchParams.get("name") ?? undefined;
       ingestWss.handleUpgrade(req, socket, head, (ws) => {
-        ingestWss.emit("connection", ws, decodeURIComponent(ingestMatch[1]));
+        ingestWss.emit("connection", ws, decodeURIComponent(ingestMatch[1]), name);
       });
       return;
     }

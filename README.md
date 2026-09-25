@@ -131,6 +131,11 @@ docker compose up --build
 - Sessions are created automatically on first audio ingest, and can also be
   pre-declared via the `SESSIONS` env var so they show up in the pickers
   before anyone starts talking.
+- The stage's optional "Session name" field gives a session a human-readable
+  display name (e.g. "Sala Principal") shown to the audience instead of the
+  raw id; it's sent as `?name=` on the ingest WebSocket URL
+  (`/ingest/:session?name=...`), trimmed and capped at 80 characters
+  server-side, and the last non-empty name sent wins.
 
 ## Scaling notes
 
