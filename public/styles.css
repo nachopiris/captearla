@@ -657,10 +657,10 @@ input:focus-visible {
   grid-template-columns: 460px minmax(0, 1fr);
   gap: 24px;
   padding: 32px;
-  align-items: start;
 }
 
 .stage-left {
+  align-self: start;
   display: flex;
   flex-direction: column;
   gap: 24px;
