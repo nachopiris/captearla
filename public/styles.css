@@ -394,7 +394,7 @@ input:focus-visible {
 
 .topbar-controls {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   gap: 24px;
   order: 2;
 }
