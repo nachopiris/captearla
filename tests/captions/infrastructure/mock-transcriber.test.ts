@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { MockTranscriber } from "../../../src/captions/infrastructure/mock-transcriber.js";
 import type { TranscribeResult } from "../../../src/captions/domain/transcriber.js";
 
@@ -33,5 +33,46 @@ describe("MockTranscriber", () => {
     // The sequence must repeat: some later call reproduces the very first result.
     const cycleLength = results.findIndex((r, i) => i > 0 && r.text === results[0].text);
     expect(cycleLength).toBeGreaterThan(0);
+  });
+
+  it("does not await any sleep when latencyMs and jitterMs are both zero (default)", async () => {
+    const sleep = vi.fn(async () => {});
+    const transcriber = new MockTranscriber({ sleep });
+
+    await transcriber.transcribe(chunk);
+
+    expect(sleep).not.toHaveBeenCalled();
+  });
+
+  it("awaits the injected sleep with the fixed latency when jitter is zero", async () => {
+    const sleep = vi.fn(async () => {});
+    const transcriber = new MockTranscriber({ latencyMs: 1500, jitterMs: 0, sleep });
+
+    await transcriber.transcribe(chunk);
+
+    expect(sleep).toHaveBeenCalledTimes(1);
+    expect(sleep).toHaveBeenCalledWith(1500);
+  });
+
+  it("applies jitter as max(0, latencyMs + (random()*2-1)*jitterMs)", async () => {
+    const sleep = vi.fn(async () => {});
+    // random() = 1 -> jitter term = (1*2-1)*jitterMs = +jitterMs
+    const transcriberHigh = new MockTranscriber({ latencyMs: 1000, jitterMs: 200, random: () => 1, sleep });
+    await transcriberHigh.transcribe(chunk);
+    expect(sleep).toHaveBeenLastCalledWith(1200);
+
+    // random() = 0 -> jitter term = (0*2-1)*jitterMs = -jitterMs
+    const transcriberLow = new MockTranscriber({ latencyMs: 1000, jitterMs: 200, random: () => 0, sleep });
+    await transcriberLow.transcribe(chunk);
+    expect(sleep).toHaveBeenLastCalledWith(800);
+  });
+
+  it("clamps the delay to 0 when jitter would push it negative", async () => {
+    const sleep = vi.fn(async () => {});
+    const transcriber = new MockTranscriber({ latencyMs: 100, jitterMs: 500, random: () => 0, sleep });
+
+    await transcriber.transcribe(chunk);
+
+    expect(sleep).toHaveBeenCalledWith(0);
   });
 });

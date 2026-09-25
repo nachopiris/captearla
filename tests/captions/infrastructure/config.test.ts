@@ -36,4 +36,26 @@ describe("loadConfig", () => {
     const config = loadConfig({ GEMINI_MODEL: "gemini-3.0-pro" });
     expect(config.geminiModel).toBe("gemini-3.0-pro");
   });
+
+  it("defaults mock latency and jitter to 0 when unset", () => {
+    const config = loadConfig({});
+    expect(config.mockLatencyMs).toBe(0);
+    expect(config.mockLatencyJitterMs).toBe(0);
+  });
+
+  it("parses MOCK_LATENCY_MS and MOCK_LATENCY_JITTER_MS as numbers", () => {
+    const config = loadConfig({ MOCK_LATENCY_MS: "1500", MOCK_LATENCY_JITTER_MS: "300" });
+    expect(config.mockLatencyMs).toBe(1500);
+    expect(config.mockLatencyJitterMs).toBe(300);
+  });
+
+  it("falls back to 0 for a non-finite MOCK_LATENCY_MS", () => {
+    const config = loadConfig({ MOCK_LATENCY_MS: "not-a-number" });
+    expect(config.mockLatencyMs).toBe(0);
+  });
+
+  it("falls back to 0 for a negative MOCK_LATENCY_JITTER_MS", () => {
+    const config = loadConfig({ MOCK_LATENCY_JITTER_MS: "-50" });
+    expect(config.mockLatencyJitterMs).toBe(0);
+  });
 });
