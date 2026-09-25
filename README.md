@@ -2,311 +2,150 @@
 
 > So nobody misses the talk.
 
-*Captearla* blends **caption** with the Rioplatense *-earla* ending of
-Nerdearla, and plays on the Spanish *captarla*: to catch it, to get it.
+Open source, real-time captioning for conferences: live stage audio in, live
+captions out — in the original language plus Spanish and English — for as
+many parallel rooms as you have stages. Built for the Nerdearla Vibeathon
+2026.
 
-Open source, real-time transcription and captioning for conferences: live
-stage audio in, live captions out — in the original language, plus Spanish
-and English — for as many parallel sessions/rooms as you have stages, with a
-simple audience page to pick a session and a language.
+A single Node process serves three things:
 
-Built for the Nerdearla Vibeathon 2026.
+| URL | Who uses it |
+| --- | --- |
+| `/stage.html` | One operator per room, on the device with the room's audio feed |
+| `/` | The audience: pick a room and a language |
+| `/api/sessions` | Health check / session list |
 
-## How it works
+## Before you deploy
 
+You need:
+
+- A **Gemini API key** ([Google AI Studio](https://aistudio.google.com/apikey)).
+  Without it the server runs a mock transcriber that emits fake captions.
+- A **stage token**: a shared secret the room operators type into the stage
+  page. Without it, anyone who finds the URL can send audio and spend your
+  Gemini quota.
+
+  ```bash
+  openssl rand -hex 24
+  ```
+
+- **HTTPS** on the public URL. Browsers only allow microphone access on
+  secure origins, so the stage page will not work over plain HTTP (except
+  on `localhost`).
+
+## Deploy to Fly.io (recommended)
+
+`fly.toml` is ready: one always-on machine in `gru` (São Paulo), HTTPS
+forced, health check on `/api/sessions`.
+
+```bash
+fly auth login
+fly apps create captearla            # if taken, pick another name and update `app` in fly.toml
+fly secrets set GEMINI_API_KEY=... STAGE_TOKEN=$(openssl rand -hex 24)
+fly deploy --ha=false
 ```
- ┌────────────┐   mic (PCM16 16kHz)   ┌──────────────────────────────────┐
- │ stage.html │ ──────── WS ───────►  │         /ingest/:session         │
- │ (operator) │                       │                                  │
- └────────────┘                       │    AudioChunker (silence-cut)    │
-                                      │                │                 │
-                                      │                ▼                 │
-                                      │      TranscriptionPipeline       │
-                                      │    (ordered, rolling context)    │
-                                      │                │                 │
-                                      │                ▼                 │
-                                      │         Transcriber port         │
-                                      │  ┌──────────────┐ ┌──────────┐   │
-                                      │  │     Mock     │ │  Gemini  │   │
-                                      │  │ (no API key) │ │  (real)  │   │
-                                      │  └──────────────┘ └──────────┘   │
-                                      │                │                 │
-                                      │                ▼                 │
-                                      │            CaptionBus            │
-                                      └──────────────────────────────────┘
-                                      │                   ▲
-                                        WS /captions/:session  GET /api/sessions
-                                              ▼                (polling)
-                                      ┌────────────────┐          │
-                                      │   index.html   │ ─────────┘
-                                      │   (audience)   │
-                                      └────────────────┘
+
+Your app is live at `https://<app>.fly.dev`. Keep the stage token somewhere
+you can share with the room operators (`fly secrets` does not show it back).
+
+To change the rooms shown before anyone starts talking, edit `SESSIONS` under
+`[env]` in `fly.toml` and redeploy.
+
+> **Keep it to one machine.** Sessions and captions live in memory, so two
+> machines would split rooms between them. `--ha=false` and
+> `min_machines_running = 1` take care of that; do not `fly scale count` up.
+
+## Deploy with Docker
+
+Anywhere you can run a container behind an HTTPS reverse proxy (Caddy,
+nginx, a cloud load balancer):
+
+```bash
+cp .env.example .env    # fill in GEMINI_API_KEY and STAGE_TOKEN
+docker compose up -d --build
 ```
 
-- **One process handles many sessions.** Each session id gets its own
-  `AudioChunker` (so silence-cut chunk boundaries never mix across
-  stages/rooms) and its own `TranscriptionPipeline` (so caption ordering and
-  the rolling text context used for continuity stay session-scoped), sharing
-  one `Transcriber` adapter instance since the adapter itself is stateless
-  per call.
-- **Hexagonal-ish layout**: `src/captions/domain` (types, ports),
-  `src/captions/application` (chunking, bus, registry, pipeline — no I/O),
-  `src/captions/infrastructure` (WS/HTTP server, mock/Gemini adapters, WAV
-  helpers), `src/main.ts` (composition root).
-- **`Transcriber` port**: `transcribe({ pcm, sampleRate: 16000, context }) =>
-  { text, lang, es, en }`. Swap the adapter to run fully offline (see
-  "Local/offline alternative" below) without touching anything else.
+The container listens on port `3000` (override the host port with `PORT`).
+Put the proxy in front and make sure it forwards WebSocket upgrades on
+`/ingest/*` and `/captions/*`.
 
-## Quick start
+Without compose:
+
+```bash
+docker build -t captearla .
+docker run -d -p 3000:3000 --env-file .env --restart unless-stopped captearla
+```
+
+## Run without Docker
 
 Requires Node 22+.
 
 ```bash
-npm install
-npm test          # vitest, no network calls
-npm run typecheck
-```
-
-### Mock mode (no API key, deterministic demo captions)
-
-```bash
-TRANSCRIBER=mock npm start
-# -> http://localhost:3000/          audience viewer
-# -> http://localhost:3000/stage.html operator page (needs a real mic)
-```
-
-To see captions flow without a microphone, stream a WAV file into one or more
-simulated sessions in another terminal:
-
-```bash
-npm run simulate -- path/to/audio.wav --sessions main-stage,room-a,room-b
-```
-
-`simulate.ts` requires **16 kHz mono PCM16** WAV input and loops the file
-forever. If your file isn't in that format, convert it first:
-
-```bash
-ffmpeg -i input.mp3 -ar 16000 -ac 1 -c:a pcm_s16le audio.wav
-```
-
-### Gemini mode (real transcription + translation)
-
-```bash
-cp .env.example .env   # fill in GEMINI_API_KEY
+npm ci
+cp .env.example .env    # fill in GEMINI_API_KEY and STAGE_TOKEN
 export $(grep -v '^#' .env | xargs)
 npm start
 ```
 
-`TRANSCRIBER` defaults to `gemini` automatically once `GEMINI_API_KEY` is set
-(set `TRANSCRIBER=mock` explicitly to keep using the mock adapter even with a
-key present). Open `stage.html` on the machine/device with the mixer or
-microphone feed for a room, and `index.html` for the audience.
+## Configuration
 
-`GEMINI_THINKING_LEVEL` (`minimal|low|medium|high`) overrides the thinking
-effort used on Gemini 3.x models, which require `thinkingLevel` instead of
-`thinkingBudget` (2.x models always run with thinking disabled and ignore
-this setting). It defaults to the model's lowest available level when unset
-or invalid.
+All settings are environment variables (see `.env.example`).
 
-### Docker
+| Variable | Default | What it does |
+| --- | --- | --- |
+| `GEMINI_API_KEY` | — | Enables real transcription + translation |
+| `STAGE_TOKEN` | — | Required `?token=` on audio ingest. Unset = open ingest (a warning is logged) |
+| `SESSIONS` | `main-stage,room-a,room-b` | Rooms listed on the stage page before any audio arrives |
+| `PORT` | `3000` | HTTP port |
+| `TRANSCRIBER` | auto | `gemini` or `mock`. Empty = `gemini` when a key is set, else `mock` |
+| `GEMINI_MODEL` | `gemini-3.5-flash-lite` | Model used for transcription + translation |
+| `GEMINI_THINKING_LEVEL` | model's lowest | `minimal\|low\|medium\|high`, Gemini 3.x only |
+| `TRANSCRIBE_MAX_IN_FLIGHT` | `3` | Concurrent model calls per room |
 
-```bash
-docker compose up --build
-# TRANSCRIBER, GEMINI_API_KEY, GEMINI_MODEL, GEMINI_THINKING_LEVEL, SESSIONS,
-# STAGE_TOKEN, PORT all pass through from your shell environment or a .env
-# file (see docker-compose.yml).
-```
+## On the day
 
-## Running a real conference
+1. **Per room**, open `https://<your-host>/stage.html` on the laptop that
+   gets the room's audio mix (mixer output beats a mic pointed at the crowd).
+   Pick the session id (e.g. `room-a`), optionally give it a display name
+   (e.g. "Sala Principal"), enter the stage token, and start.
+2. **For the audience**, share `https://<your-host>/` (a QR code at the door
+   works well). Deep links pre-select a room and language:
+   `/?session=room-a&lang=es`.
+3. **For a screen next to the stage**, open the viewer and use projector
+   mode (fullscreen, no chrome).
 
-- One laptop (or the room's own mixer output) per stage/room runs
-  `stage.html`, pointed at that room's unique session id (e.g. `room-a`).
-  Feed it the room's audio mix, not raw crowd noise, for best results.
-- The audience opens `index.html` (e.g. via a QR code at the entrance),
-  picks their room and preferred language (original / Español / English).
-  Their choice is remembered (`localStorage`) and shareable via
-  `?session=room-a&lang=es` deep links.
-- A "projector mode" toggle on the viewer hides the chrome and goes
-  fullscreen, for a screen mounted next to the stage.
-- Sessions are created automatically on first audio ingest, and can also be
-  pre-declared via the `SESSIONS` env var so they show up in the stage's
-  picker before anyone starts talking. The audience viewer only lists
-  sessions that are currently live, by their display name; a session a
-  viewer already has open or selected stays listed (marked "offline") if the
-  speaker pauses, instead of disappearing from under them.
-- The stage's optional "Session name" field gives a session a human-readable
-  display name (e.g. "Sala Principal") shown to the audience instead of the
-  raw id; it's sent as `?name=` on the ingest WebSocket URL
-  (`/ingest/:session?name=...`), trimmed and capped at 80 characters
-  server-side, and the last non-empty name sent wins.
+If the stage page shows "Connection rejected — check the stage token", the
+token typed there does not match `STAGE_TOKEN`.
 
-## Protecting audio ingest (STAGE_TOKEN)
+## Capacity and cost
 
-The `/ingest/:session` WebSocket is the only endpoint that costs Gemini
-quota and can create/rename sessions, so it's the one worth locking down.
-Set `STAGE_TOKEN` to require a shared secret on it:
+- One process handles many rooms; the audience never touches the model, so
+  **cost scales with speaking time, not with audience size**.
+- Caption latency is roughly the chunk length (2.5–6 s) plus model latency.
+- If you outgrow one machine, run one instance per group of rooms and point
+  each room's stage and audience links at its instance. Instances share no
+  state.
+- To check capacity without spending on Gemini, run the server with
+  `TRANSCRIBER=mock MOCK_LATENCY_MS=1500` and load it with
+  `npm run bench -- audio.wav --sessions 20 --duration 120`
+  (16 kHz mono PCM16 WAV; convert with
+  `ffmpeg -i in.mp3 -ar 16000 -ac 1 -c:a pcm_s16le audio.wav`).
 
-- **What it protects**: audio ingest only. The audience viewer, `/api/*`,
-  and the caption WebSocket stay public and read-only either way.
-- **Unset**: ingest stays open to anyone with the URL, and the server logs
-  a startup warning. Fine for local dev, not for a public event.
-- **Set**: the ingest WebSocket handshake requires a matching `?token=`
-  query param, checked with a timing-safe comparison; a missing or wrong
-  token gets a `401` before any session is created or renamed.
-- **On the stage page**: enter the same value in the "Stage token" field
-  next to the session name. It's remembered in this browser's
-  `localStorage`, like the session id and name. A rejected connection
-  shows "Connection rejected — check the stage token".
+## Privacy
+
+Audio is sent to Google's Gemini API in short chunks under your own key and
+is never stored. Only recent caption text is kept, in memory. There are no
+accounts and no tracking.
+
+## Development
 
 ```bash
-# .env / shell
-STAGE_TOKEN=$(openssl rand -hex 24)
+npm install
+npm test            # no network calls
+npm run typecheck
+TRANSCRIBER=mock npm start
+npm run simulate -- audio.wav --sessions main-stage,room-a   # fake stage audio
 ```
-
-## Deploying to Fly.io
-
-`fly.toml` deploys the existing `Dockerfile` as a single, always-on machine
-(state is in memory, so do not scale it past one machine per shard):
-
-```bash
-fly apps create captearla          # pick another name if taken, and update fly.toml
-fly secrets set GEMINI_API_KEY=... # without it the transcriber falls back to mock
-fly secrets set STAGE_TOKEN=$(openssl rand -hex 24) # protects audio ingest for a public event
-fly deploy --ha=false
-```
-
-Fly serves it over HTTPS, which the stage page needs for microphone access.
-Without `STAGE_TOKEN` set, the ingest WebSocket has no authentication, so
-anyone who finds the URL can send audio and spend Gemini quota; set it
-before a public event (see "Protecting audio ingest" above).
-
-## Scaling notes
-
-- A single Node process comfortably handles many parallel sessions: the
-  per-session state (chunker + pipeline) is a few small objects, and
-  transcription calls for different sessions run concurrently. Within the
-  same session, up to `TRANSCRIBE_MAX_IN_FLIGHT` calls run concurrently too;
-  captions still publish in strict chunk order regardless of which call
-  finishes first (see `TRANSCRIBE_MAX_IN_FLIGHT` below).
-- Beyond one process/machine, shard by session id (e.g. consistent hashing
-  across N instances behind a load balancer, or route each room's
-  `stage.html`/`index.html` to a dedicated instance/URL). No shared state is
-  required between shards.
-- **Latency** is roughly `chunk duration (2.5–6s, silence-cut) + model
-  latency`. Shortening `minDurationMs`/`maxDurationMs` trades latency for
-  more, shorter model calls (and cost).
-- **Cost** scales with the number of chunks transcribed, i.e. with total
-  speaking time across sessions, not with audience size (the audience only
-  reads from the WebSocket/HTTP API, it never touches the model).
-
-## Load testing
-
-`scripts/simulate.ts` streams audio into sessions but measures nothing.
-`scripts/bench.ts` does the same streaming, but also subscribes to each
-session's captions and reports end-to-end latency, so you can find out how
-many parallel rooms one process sustains — without spending on Gemini.
-
-### 1. Run with simulated model latency
-
-Point the server at `MockTranscriber` with a realistic simulated latency
-(and optional jitter) instead of Gemini's real (and billed) response time:
-
-```bash
-TRANSCRIBER=mock MOCK_LATENCY_MS=1500 MOCK_LATENCY_JITTER_MS=300 npm start
-```
-
-`MOCK_LATENCY_MS`/`MOCK_LATENCY_JITTER_MS` default to `0` (instant, the old
-behavior) and fall back to `0` on invalid or negative input. The simulated
-delay per transcription call is `max(0, latencyMs + jitter)`.
-
-`TRANSCRIBE_MAX_IN_FLIGHT` controls how many `transcribe` calls run
-concurrently *per session* (default `3`; falls back to `3` on a missing,
-non-integer, or non-positive value; `1` reproduces the old fully serial
-behavior). Captions always publish in strict chunk order no matter how many
-calls are in flight, but the rolling context passed to the model (the latest
-*published* captions) can lag by up to `TRANSCRIBE_MAX_IN_FLIGHT - 1` chunks
-under load, since a call is dispatched before earlier concurrent calls have
-published. That's an accepted tradeoff for keeping throughput above one
-chunk per model round-trip when model latency exceeds chunk duration.
-
-### 2. Run the bench
-
-In another terminal:
-
-```bash
-npm run bench -- path/to/audio.wav --sessions 20 --duration 120 \
-  --host localhost:3000 --max-drift 500
-```
-
-- `--sessions` accepts a count (`20` -> sessions `bench-1..bench-20`) or an
-  explicit comma-separated list (`room-a,room-b`).
-- `--duration` is the run length in seconds (default `60`); the WAV loops for
-  that long per session.
-- `--max-drift` is the backlog threshold in ms of extra latency per minute
-  (default `500`).
-- Like `simulate.ts`, the WAV must be 16 kHz mono PCM16 (same `ffmpeg`
-  conversion as above).
-
-The bench opens each session's `/captions/:session` WebSocket *before*
-streaming audio, records `latency = receivedAt - chunkTs` for every caption
-(`chunkTs` is stamped when the audio chunk was cut and enqueued, not when the
-caption was published), waits a short grace period after streaming stops for
-in-flight captions, then prints a per-session and overall report:
-
-```
-session         count   p50ms   p95ms   maxms  drift(ms/min)  verdict
-bench-1            34    1510    1830    1920            4.2       ok
-bench-2            33    1490    1795    1901            3.8       ok
-
-Overall: count=67 p50=1500ms p95=1810ms max=1920ms drift=4.0ms/min (threshold 500ms/min) ok
-```
-
-### Reading the report
-
-- `p50`/`p95`/`max` are steady-state latency: queue wait + model latency +
-  delivery. With mock latency and no backlog these should hover near the
-  configured `MOCK_LATENCY_MS`.
-- `driftMsPerMin` is the least-squares slope of latency over elapsed time. A
-  value near 0 means captions keep pace; a large positive value means the
-  per-session pipeline can't keep up (its `TRANSCRIBE_MAX_IN_FLIGHT`
-  concurrent calls are all saturated) and captions are progressively falling
-  behind.
-- A session (or the overall row) is flagged `BACKLOG` when its drift exceeds
-  `--max-drift`, and the process exits non-zero — useful as a capacity gate.
-  To reproduce backlog deliberately, set `MOCK_LATENCY_MS` above
-  `chunk duration * TRANSCRIBE_MAX_IN_FLIGHT` (chunk duration is
-  `AudioChunker`'s `maxDurationMs`, 6000ms by default): each chunk then takes
-  longer to transcribe than the pipeline can absorb concurrently, so the
-  queue grows without bound. Raising `TRANSCRIBE_MAX_IN_FLIGHT` pushes that
-  threshold higher at the cost of more context lag (see above).
-
-### Real Gemini load runs
-
-Running the bench with `TRANSCRIBER=gemini` sends real audio to Google's API
-and **costs money** per chunk transcribed, and may hit per-key rate limits
-well before it hits any limit of this process. Prefer the mock-latency runs
-above for capacity planning; only run against real Gemini deliberately, with
-a small number of sessions/duration, and watch for rate-limit errors in the
-server logs.
-
-## Local/offline alternative
-
-The `Transcriber` port is the only integration point a model needs to
-satisfy: `transcribe({ pcm, sampleRate, context }) => Promise<{ text, lang,
-es, en }>`. Swapping Gemini for a local model (e.g. Whisper for transcription
-+ a local translation model, or a multimodal local model like Gemma that can
-do both in one call) means writing one new adapter in
-`src/captions/infrastructure/`, with no changes to the chunker, pipeline,
-bus, registry, server, or frontend.
-
-## Privacy note
-
-Audio is processed in short chunks (a few seconds) and only the resulting
-text captions are kept (bounded recent history per session, in memory, not
-persisted to disk). In Gemini mode, each chunk is sent to Google's API under
-your own `GEMINI_API_KEY`; nothing else is sent. There is no user
-authentication or tracking — the viewer only reveals which sessions exist and
-their live/caption-count status, never who is watching.
 
 ## License
 
