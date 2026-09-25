@@ -72,10 +72,21 @@ export class AudioChunker {
     return rms(tail) < this.silenceRmsThreshold;
   }
 
+  /**
+   * Copies only the last `samples` samples, walking segments from the end, so
+   * the per-frame silence check costs O(window) instead of re-merging the
+   * whole buffer (which made a chunk O(n²) in its frame count).
+   */
   private tail(samples: number): Int16Array {
-    const merged = this.merge();
-    const start = Math.max(0, merged.length - samples);
-    return merged.subarray(start);
+    const tail = new Int16Array(Math.min(samples, this.totalSamples));
+    let remaining = tail.length;
+    for (let i = this.segments.length - 1; i >= 0 && remaining > 0; i--) {
+      const segment = this.segments[i];
+      const take = Math.min(remaining, segment.length);
+      remaining -= take;
+      tail.set(segment.subarray(segment.length - take), remaining);
+    }
+    return tail;
   }
 
   private merge(): Int16Array {
